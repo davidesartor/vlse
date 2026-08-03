@@ -27,3 +27,10 @@ from vlse.bowl_shaped import (
     SumSquares,
     Trid,
 )
+from vlse.plate_shaped import (
+    Booth,
+    Matyas,
+    McCormick,
+    PowerSum,
+    Zakharov,
+)
