@@ -1,0 +1,52 @@
+[project]
+name = "jaxvlse"
+version = "0.0.0"
+description = "JAX ports of the SFU Virtual Library of Simulation Experiments test functions"
+readme = "README.md"
+authors = [
+    { name = "davidesartor", email = "d.sartor97@gmail.com" }
+]
+license = "GPL-2.0-only"
+license-files = ["LICENSE", "NOTICE"]
+keywords = ["jax", "benchmark", "test-functions", "optimization", "surrogate-modeling"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Typing :: Typed",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "equinox>=0.11.0",
+    "jax>=0.4.30",
+    "jaxtyping>=0.2.20",
+]
+
+[project.urls]
+Homepage = "https://github.com/davidesartor/vlse"
+Repository = "https://github.com/davidesartor/vlse"
+Issues = "https://github.com/davidesartor/vlse/issues"
+"Reference implementations" = "https://www.sfu.ca/~ssurjano/"
+
+[build-system]
+requires = ["uv_build>=0.10.2,<0.11.0"]
+build-backend = "uv_build"
+
+# distribution is jaxvlse (PyPI rejects `vlse` as too similar to `vise`), import name stays vlse
+[tool.uv.build-backend]
+module-name = "vlse"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-xdist>=3.6",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["tests"]
+# the parity module spawns an Rscript per case, so the suite is dominated by process startup
+addopts = "-n auto"

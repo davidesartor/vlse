@@ -1,0 +1,26 @@
+# NOTICE
+
+`vlse` is a JAX port of the test functions published in the Virtual Library of Simulation
+Experiments: Test Functions and Datasets
+
+    Sonja Surjanovic and Derek Bingham, Simon Fraser University
+    https://www.sfu.ca/~ssurjano/
+
+The R and MATLAB reference implementations on that site are distributed under the GNU General
+Public License, version 2, with the following copyright notice:
+
+    Copyright 2013. Derek Bingham, Simon Fraser University.
+
+    THERE IS NO WARRANTY, EXPRESS OR IMPLIED. WE DO NOT ASSUME ANY LIABILITY FOR THE USE OF THIS
+    PROGRAM. If software is modified to produce derivative works, such modified software should be
+    clearly marked. Additionally, this program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License as published by the Free Software
+    Foundation; version 2.0 of the License. Accordingly, this program is distributed in the hope
+    that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+    more details.
+
+This package is a derivative work: every function is a translation of the corresponding R source
+into JAX, and is therefore released under the same license (GPL-2.0-only, see LICENSE).
+
+Deviations from the published R sources are documented in README.md.
