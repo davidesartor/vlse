@@ -45,3 +45,18 @@ from vlse.steep_drops import (
     Easom,
     Michalewicz,
 )
+from vlse.other import (
+    Beale,
+    Branin,
+    Colville,
+    Forrester,
+    ForresterLowFidelity,
+    GoldsteinPrice,
+    Hartmann3,
+    Hartmann4,
+    Hartmann6,
+    Perm,
+    Powell,
+    Shekel,
+    StyblinskiTang,
+)
