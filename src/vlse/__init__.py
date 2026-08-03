@@ -40,3 +40,8 @@ from vlse.valley_shaped import (
     DixonPrice,
     Rosenbrock,
 )
+from vlse.steep_drops import (
+    DeJong5,
+    Easom,
+    Michalewicz,
+)
