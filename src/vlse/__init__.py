@@ -18,3 +18,12 @@ from vlse.many_local_minima import (
     Schwefel,
     Shubert,
 )
+from vlse.bowl_shaped import (
+    Bohachevsky,
+    Perm0,
+    RotatedHyperEllipsoid,
+    Sphere,
+    SumPowers,
+    SumSquares,
+    Trid,
+)
