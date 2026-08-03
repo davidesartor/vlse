@@ -34,3 +34,9 @@ from vlse.plate_shaped import (
     PowerSum,
     Zakharov,
 )
+from vlse.valley_shaped import (
+    Camel3,
+    Camel6,
+    DixonPrice,
+    Rosenbrock,
+)
