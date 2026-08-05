@@ -140,8 +140,28 @@ sources, and compares — there is no frozen golden data. Without R on `PATH` th
 the rest of the suite still runs. CI covers 3.10–3.13 plus a `--resolution lowest-direct` job, so the
 dependency floors are real ones.
 
-`bench/` holds a batch-size scaling sweep run across 14 device configurations; see
-[bench/README.md](bench/README.md).
+## Benchmarks
+
+Throughput of one function (`Ackley`) in f64, swept across the GPUs and CPUs of one cluster — grown
+along the batch axis at `d=20`, and along the dimension axis at batch 128. Median per-call throughput
+with a 95% interval on the median shaded, log-log, one line per device, coloured by market segment.
+
+Either figure opens hoverable:
+
+[![evaluations per second against batch size, f64, one line per device](https://raw.githubusercontent.com/davidesartor/vlse/main/bench/functions/scaling-batch-fp64.svg)](https://raw.githack.com/davidesartor/vlse/main/bench/functions/scaling-batch-fp64.html)
+
+[![evaluations per second against dimension, f64, one line per device](https://raw.githubusercontent.com/davidesartor/vlse/main/bench/functions/scaling-dim-fp64.svg)](https://raw.githack.com/davidesartor/vlse/main/bench/functions/scaling-dim-fp64.html)
+
+The f32 panels, where everything but the `hpc` parts runs one to two orders faster:
+[batch](https://raw.githack.com/davidesartor/vlse/main/bench/functions/scaling-batch-fp32.html),
+[dim](https://raw.githack.com/davidesartor/vlse/main/bench/functions/scaling-dim-fp32.html).
+
+Read the small end of either axis as latency rather than as throughput — JAX is dispatch-bound there.
+Nodes are shared and clocks vary with what else is on the machine, so this is an order-of-magnitude
+picture, not a certified ranking.
+
+`bench/` holds the sweeps above under [bench/functions/](bench/functions/); what is measured, how,
+and where each curve stops is in [bench/README.md](bench/README.md).
 
 ## License
 

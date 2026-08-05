@@ -9,5 +9,10 @@ wheels/
 # Virtual environments
 .venv
 
+# Benchmark scratch
+bench/functions/logs/
+bench/optim/logs/
+tools/slurm/logs/
+
 # Agent instructions
 CLAUDE.md

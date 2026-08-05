@@ -1,0 +1,115 @@
+label,sweep,dtype,device,machine,host,fn,d,batch,version
+1080_ti,batch,f16,NVIDIA GeForce GTX 1080 Ti,NVIDIA GeForce GTX 1080 Ti,gypsum-gpu116,Ackley,64,,0.11.0
+1080_ti,batch,f32,NVIDIA GeForce GTX 1080 Ti,NVIDIA GeForce GTX 1080 Ti,gypsum-gpu127,Ackley,64,,0.11.0
+1080_ti,batch,f64,NVIDIA GeForce GTX 1080 Ti,NVIDIA GeForce GTX 1080 Ti,gypsum-gpu147,Ackley,64,,0.11.0
+1080_ti,dim,f16,NVIDIA GeForce GTX 1080 Ti,NVIDIA GeForce GTX 1080 Ti,gypsum-gpu116,Ackley,,1024,0.11.0
+1080_ti,dim,f32,NVIDIA GeForce GTX 1080 Ti,NVIDIA GeForce GTX 1080 Ti,gypsum-gpu121,Ackley,,1024,0.11.0
+1080_ti,dim,f64,NVIDIA GeForce GTX 1080 Ti,NVIDIA GeForce GTX 1080 Ti,gypsum-gpu121,Ackley,,1024,0.11.0
+2080_ti,batch,f16,NVIDIA GeForce RTX 2080 Ti,NVIDIA GeForce RTX 2080 Ti,gypsum-gpu192,Ackley,64,,0.11.0
+2080_ti,batch,f32,NVIDIA GeForce RTX 2080 Ti,NVIDIA GeForce RTX 2080 Ti,gypsum-gpu191,Ackley,64,,0.11.0
+2080_ti,batch,f64,NVIDIA GeForce RTX 2080 Ti,NVIDIA GeForce RTX 2080 Ti,gypsum-gpu192,Ackley,64,,0.11.0
+2080_ti,dim,f16,NVIDIA GeForce RTX 2080 Ti,NVIDIA GeForce RTX 2080 Ti,gypsum-gpu191,Ackley,,1024,0.11.0
+2080_ti,dim,f32,NVIDIA GeForce RTX 2080 Ti,NVIDIA GeForce RTX 2080 Ti,gypsum-gpu192,Ackley,,1024,0.11.0
+2080_ti,dim,f64,NVIDIA GeForce RTX 2080 Ti,NVIDIA GeForce RTX 2080 Ti,gypsum-gpu192,Ackley,,1024,0.11.0
+a100,batch,f16,NVIDIA A100-SXM4-80GB,NVIDIA A100-SXM4-80GB,gpu015,Ackley,64,,0.11.0
+a100,batch,f32,NVIDIA A100-SXM4-80GB,NVIDIA A100-SXM4-80GB,gpu015,Ackley,64,,0.11.0
+a100,batch,f64,NVIDIA A100-SXM4-80GB,NVIDIA A100-SXM4-80GB,gpu015,Ackley,64,,0.11.0
+a100,dim,f16,NVIDIA A100-SXM4-80GB,NVIDIA A100-SXM4-80GB,gpu015,Ackley,,1024,0.11.0
+a100,dim,f32,NVIDIA A100-SXM4-80GB,NVIDIA A100-SXM4-80GB,gpu020,Ackley,,1024,0.11.0
+a100,dim,f64,NVIDIA A100-SXM4-80GB,NVIDIA A100-SXM4-80GB,gpu015,Ackley,,1024,0.11.0
+a16,batch,f16,NVIDIA A16,NVIDIA A16,gpu059,Ackley,64,,0.11.0
+a16,batch,f32,NVIDIA A16,NVIDIA A16,gpu059,Ackley,64,,0.11.0
+a16,batch,f64,NVIDIA A16,NVIDIA A16,gpu048,Ackley,64,,0.11.0
+a16,dim,f16,NVIDIA A16,NVIDIA A16,gpu059,Ackley,,1024,0.11.0
+a16,dim,f32,NVIDIA A16,NVIDIA A16,gpu048,Ackley,,1024,0.11.0
+a16,dim,f64,NVIDIA A16,NVIDIA A16,gpu059,Ackley,,1024,0.11.0
+a40,batch,f16,NVIDIA A40,NVIDIA A40,gpu008,Ackley,64,,0.11.0
+a40,batch,f32,NVIDIA A40,NVIDIA A40,gpu008,Ackley,64,,0.11.0
+a40,batch,f64,NVIDIA A40,NVIDIA A40,gpu008,Ackley,64,,0.11.0
+a40,dim,f16,NVIDIA A40,NVIDIA A40,gpu008,Ackley,,1024,0.11.0
+a40,dim,f32,NVIDIA A40,NVIDIA A40,gpu008,Ackley,,1024,0.11.0
+a40,dim,f64,NVIDIA A40,NVIDIA A40,gpu008,Ackley,,1024,0.11.0
+a4000,batch,f16,NVIDIA RTX A4000,NVIDIA RTX A4000,gpu047,Ackley,64,,0.11.0
+a4000,batch,f32,NVIDIA RTX A4000,NVIDIA RTX A4000,gpu047,Ackley,64,,0.11.0
+a4000,batch,f64,NVIDIA RTX A4000,NVIDIA RTX A4000,gpu047,Ackley,64,,0.11.0
+a4000,dim,f16,NVIDIA RTX A4000,NVIDIA RTX A4000,gpu047,Ackley,,1024,0.11.0
+a4000,dim,f32,NVIDIA RTX A4000,NVIDIA RTX A4000,gpu047,Ackley,,1024,0.11.0
+a4000,dim,f64,NVIDIA RTX A4000,NVIDIA RTX A4000,gpu047,Ackley,,1024,0.11.0
+cpu-16core,batch,f16,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-16core,batch,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-16core,batch,f64,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-16core,dim,f16,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+cpu-16core,dim,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+cpu-16core,dim,f64,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+cpu-1core,batch,f16,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-1core,batch,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-1core,batch,f64,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-1core,dim,f16,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+cpu-1core,dim,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+cpu-1core,dim,f64,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+cpu-2core,batch,f16,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-2core,batch,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-2core,batch,f64,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-2core,dim,f16,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+cpu-2core,dim,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+cpu-2core,dim,f64,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+cpu-4core,batch,f16,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-4core,batch,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-4core,batch,f64,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-4core,dim,f16,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+cpu-4core,dim,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+cpu-4core,dim,f64,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+cpu-8core,batch,f16,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-8core,batch,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-8core,batch,f64,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,64,,0.11.0
+cpu-8core,dim,f16,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+cpu-8core,dim,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+cpu-8core,dim,f64,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,Ackley,,1024,0.11.0
+gh200,batch,f16,NVIDIA GH200 480GB,NVIDIA GH200 480GB,arm-gpu002,Ackley,64,,0.11.0
+gh200,batch,f32,NVIDIA GH200 480GB,NVIDIA GH200 480GB,arm-gpu002,Ackley,64,,0.11.0
+gh200,batch,f64,NVIDIA GH200 480GB,NVIDIA GH200 480GB,uri-arm-gpu002,Ackley,64,,0.11.0
+gh200,dim,f16,NVIDIA GH200 480GB,NVIDIA GH200 480GB,uri-arm-gpu001,Ackley,,1024,0.11.0
+gh200,dim,f32,NVIDIA GH200 480GB,NVIDIA GH200 480GB,uri-arm-gpu001,Ackley,,1024,0.11.0
+gh200,dim,f64,NVIDIA GH200 480GB,NVIDIA GH200 480GB,arm-gpu002,Ackley,,1024,0.11.0
+h100,batch,f16,NVIDIA H100 80GB HBM3,NVIDIA H100 80GB HBM3,uri-gpu012,Ackley,64,,0.11.0
+h100,batch,f32,NVIDIA H100 80GB HBM3,NVIDIA H100 80GB HBM3,uri-gpu012,Ackley,64,,0.11.0
+h100,batch,f64,NVIDIA H100 80GB HBM3,NVIDIA H100 80GB HBM3,uri-gpu012,Ackley,64,,0.11.0
+h100,dim,f16,NVIDIA H100 80GB HBM3,NVIDIA H100 80GB HBM3,uri-gpu012,Ackley,,1024,0.11.0
+h100,dim,f32,NVIDIA H100 80GB HBM3,NVIDIA H100 80GB HBM3,uri-gpu012,Ackley,,1024,0.11.0
+h100,dim,f64,NVIDIA H100 80GB HBM3,NVIDIA H100 80GB HBM3,uri-gpu012,Ackley,,1024,0.11.0
+l4,batch,f16,NVIDIA L4,NVIDIA L4,gpu043,Ackley,64,,0.11.0
+l4,batch,f32,NVIDIA L4,NVIDIA L4,gpu043,Ackley,64,,0.11.0
+l4,batch,f64,NVIDIA L4,NVIDIA L4,gpu043,Ackley,64,,0.11.0
+l4,dim,f16,NVIDIA L4,NVIDIA L4,gpu043,Ackley,,1024,0.11.0
+l4,dim,f32,NVIDIA L4,NVIDIA L4,gpu043,Ackley,,1024,0.11.0
+l4,dim,f64,NVIDIA L4,NVIDIA L4,gpu043,Ackley,,1024,0.11.0
+l40s,batch,f16,NVIDIA L40S,NVIDIA L40S,ials-gpu034,Ackley,64,,0.11.0
+l40s,batch,f32,NVIDIA L40S,NVIDIA L40S,ials-gpu034,Ackley,64,,0.11.0
+l40s,batch,f64,NVIDIA L40S,NVIDIA L40S,ials-gpu035,Ackley,64,,0.11.0
+l40s,dim,f16,NVIDIA L40S,NVIDIA L40S,ials-gpu034,Ackley,,1024,0.11.0
+l40s,dim,f32,NVIDIA L40S,NVIDIA L40S,ials-gpu034,Ackley,,1024,0.11.0
+l40s,dim,f64,NVIDIA L40S,NVIDIA L40S,ials-gpu034,Ackley,,1024,0.11.0
+m40,batch,f16,Tesla M40 24GB,Tesla M40 24GB,gypsum-gpu010,Ackley,64,,0.11.0
+m40,batch,f32,Tesla M40 24GB,Tesla M40 24GB,gypsum-gpu002,Ackley,64,,0.11.0
+m40,batch,f64,Tesla M40 24GB,Tesla M40 24GB,gypsum-gpu002,Ackley,64,,0.11.0
+m40,dim,f16,Tesla M40 24GB,Tesla M40 24GB,gypsum-gpu018,Ackley,,1024,0.11.0
+m40,dim,f32,Tesla M40 24GB,Tesla M40 24GB,gypsum-gpu004,Ackley,,1024,0.11.0
+m40,dim,f64,Tesla M40 24GB,Tesla M40 24GB,gypsum-gpu002,Ackley,,1024,0.11.0
+rtx_8000,batch,f16,Quadro RTX 8000,Quadro RTX 8000,gypsum-gpu182,Ackley,64,,0.11.0
+rtx_8000,batch,f32,Quadro RTX 8000,Quadro RTX 8000,gypsum-gpu186,Ackley,64,,0.11.0
+rtx_8000,batch,f64,Quadro RTX 8000,Quadro RTX 8000,gypsum-gpu182,Ackley,64,,0.11.0
+rtx_8000,dim,f16,Quadro RTX 8000,Quadro RTX 8000,gypsum-gpu182,Ackley,,1024,0.11.0
+rtx_8000,dim,f32,Quadro RTX 8000,Quadro RTX 8000,gypsum-gpu182,Ackley,,1024,0.11.0
+rtx_8000,dim,f64,Quadro RTX 8000,Quadro RTX 8000,gypsum-gpu186,Ackley,,1024,0.11.0
+titan_x,batch,f16,NVIDIA GeForce GTX TITAN X,NVIDIA GeForce GTX TITAN X,gypsum-gpu062,Ackley,64,,0.11.0
+titan_x,batch,f32,NVIDIA GeForce GTX TITAN X,NVIDIA GeForce GTX TITAN X,gypsum-gpu062,Ackley,64,,0.11.0
+titan_x,batch,f64,NVIDIA GeForce GTX TITAN X,NVIDIA GeForce GTX TITAN X,gypsum-gpu062,Ackley,64,,0.11.0
+titan_x,dim,f16,NVIDIA GeForce GTX TITAN X,NVIDIA GeForce GTX TITAN X,gypsum-gpu062,Ackley,,1024,0.11.0
+titan_x,dim,f32,NVIDIA GeForce GTX TITAN X,NVIDIA GeForce GTX TITAN X,gypsum-gpu062,Ackley,,1024,0.11.0
+titan_x,dim,f64,NVIDIA GeForce GTX TITAN X,NVIDIA GeForce GTX TITAN X,gypsum-gpu062,Ackley,,1024,0.11.0
+v100,batch,f16,Tesla V100-PCIE-16GB,Tesla V100-PCIE-16GB,gpu006,Ackley,64,,0.11.0
+v100,batch,f32,Tesla V100-PCIE-16GB,Tesla V100-PCIE-16GB,gpu006,Ackley,64,,0.11.0
+v100,batch,f64,Tesla V100-PCIE-16GB,Tesla V100-PCIE-16GB,gpu004,Ackley,64,,0.11.0
+v100,dim,f16,Tesla V100-PCIE-16GB,Tesla V100-PCIE-16GB,gpu006,Ackley,,1024,0.11.0
+v100,dim,f32,Tesla V100-PCIE-16GB,Tesla V100-PCIE-16GB,gpu006,Ackley,,1024,0.11.0
+v100,dim,f64,Tesla V100-PCIE-16GB,Tesla V100-PCIE-16GB,gpu004,Ackley,,1024,0.11.0
