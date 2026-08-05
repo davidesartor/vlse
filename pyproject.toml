@@ -1,6 +1,6 @@
 [project]
 name = "jaxvlse"
-version = "0.0.0"
+version = "0.1.0"
 description = "JAX ports of the SFU Virtual Library of Simulation Experiments test functions"
 readme = "README.md"
 authors = [

@@ -1,15 +1,12 @@
 # vlse
 
-> **`0.0.0` is a name placeholder.** Nothing is stable yet — install from git, or pin an exact
-> version, until `0.1.0` lands.
-
 The 48 test functions of the [Virtual Library of Simulation Experiments](https://www.sfu.ca/~ssurjano/)
 (Surjanovic & Bingham, SFU), ported to JAX. Each one is a line-by-line translation of the R source
 published on that site, and the test suite re-runs those R sources on every invocation to check
 agreement at `rel=1e-12`.
 
 ```bash
-uv add git+https://github.com/davidesartor/vlse        # equinox, jax, jaxtyping; nothing else
+uv add jaxvlse        # the distribution is `jaxvlse`; the import stays `import vlse`
 ```
 
 `vlse` itself is unavailable on PyPI — it collides with the existing `vise` under PyPI's
