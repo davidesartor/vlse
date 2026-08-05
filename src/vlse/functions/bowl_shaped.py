@@ -5,31 +5,32 @@ from jaxtyping import Array, Float
 import jax.numpy as jnp
 import equinox as eqx
 
+from vlse.functions.base import TestFunction
 
-class Bohachevsky(eqx.Module):
+
+class Bohachevsky(TestFunction):
     """
     The three Bohachevsky functions all have the same similar bowl shape.
     See https://www.sfu.ca/~ssurjano/boha.html for original implementation and more details.
     """
 
-    variant: Literal[1, 2, 3]
-    normalized: bool = False
-
     d: ClassVar[int] = 2
-    domain: ClassVar[tuple[float, float]] = (-100.0, 100.0)
-    ymin: ClassVar[float] = 0.0
+    variant: Literal[1, 2, 3]
 
     def __check_init__(self):
         assert self.variant in (1, 2, 3), "Bohachevsky has three variants, 1 to 3"
 
-    @eqx.filter_jit
-    def __call__(self, x: Float[Array, "... 2"]) -> Float[Array, "..."]:
-        assert x.shape[-1] == self.d, f"Bohachevsky needs d={self.d} inputs"
+    @property
+    def domain(self) -> tuple[Float[Array, "2"], Float[Array, "2"]]:
+        lo = jnp.full(self.d, -100.0)
+        hi = jnp.full(self.d, 100.0)
+        return lo, hi
 
-        if self.normalized:
-            lo, hi = self.domain
-            x = lo + (hi - lo) * x
+    @property
+    def ymin(self) -> Float[Array, ""]:
+        return jnp.asarray(0.0)
 
+    def f(self, x: Float[Array, "... 2"]) -> Float[Array, "..."]:
         if self.variant == 1:
             # port of R implementation from https://www.sfu.ca/~ssurjano/Code/boha1r.html
             x1, x2 = x[..., 0], x[..., 1]
@@ -52,48 +53,38 @@ class Bohachevsky(eqx.Module):
             term2 = 2 * x2**2
             term3 = -0.3 * jnp.cos(3 * jnp.pi * x1 + 4 * jnp.pi * x2)
             y = term1 + term2 + term3 + 0.3
-
-        if self.normalized:
-            y = y - self.ymin
         return y
 
 
-class Perm0(eqx.Module):
+class Perm0(TestFunction):
     """
     The Perm 0 function has a single global minimum.
     See https://www.sfu.ca/~ssurjano/perm0db.html for original implementation and more details.
     """
 
     d: int
-    beta: float = 10.0
-    normalized: bool = False
-
-    ymin: ClassVar[float] = 0.0
+    beta: Float[Array, ""] = eqx.field(converter=jnp.asarray, default=10.0)
 
     @property
-    def domain(self) -> tuple[float, float]:
-        return -float(self.d), float(self.d)
+    def domain(self) -> tuple[Float[Array, "d"], Float[Array, "d"]]:
+        lo = jnp.full(self.d, -float(self.d))
+        hi = jnp.full(self.d, float(self.d))
+        return lo, hi
 
-    @eqx.filter_jit
-    def __call__(self, x: Float[Array, "... d"]) -> Float[Array, "..."]:
-        assert x.shape[-1] == self.d, f"Perm0 needs d={self.d} inputs"
+    @property
+    def ymin(self) -> Float[Array, ""]:
+        return jnp.asarray(0.0)
 
-        if self.normalized:
-            lo, hi = self.domain
-            x = lo + (hi - lo) * x
-
+    def f(self, x: Float[Array, "... d"]) -> Float[Array, "..."]:
         # port of R implementation from https://www.sfu.ca/~ssurjano/Code/perm0dbr.html
-        ii = jnp.arange(1, x.shape[-1] + 1)
+        ii = jnp.arange(1, x.shape[-1] + 1, dtype=x.dtype)
         xi = x[..., None, :] ** ii[..., None]
         inner = (ii + self.beta) * (xi - (1 / ii) ** ii[..., None])
         y = jnp.sum(jnp.sum(inner, axis=-1) ** 2, axis=-1)
-
-        if self.normalized:
-            y = y - self.ymin
         return y
 
 
-class RotatedHyperEllipsoid(eqx.Module):
+class RotatedHyperEllipsoid(TestFunction):
     """
     The Rotated Hyper-Ellipsoid function is continuous, convex and unimodal.
     It is an extension of the Axis Parallel Hyper-Ellipsoid function, also referred to as the Sum Squares function.
@@ -101,29 +92,25 @@ class RotatedHyperEllipsoid(eqx.Module):
     """
 
     d: int
-    normalized: bool = False
 
-    domain: ClassVar[tuple[float, float]] = (-65.536, 65.536)
-    ymin: ClassVar[float] = 0.0
+    @property
+    def domain(self) -> tuple[Float[Array, "d"], Float[Array, "d"]]:
+        lo = jnp.full(self.d, -65.536)
+        hi = jnp.full(self.d, 65.536)
+        return lo, hi
 
-    @eqx.filter_jit
-    def __call__(self, x: Float[Array, "... d"]) -> Float[Array, "..."]:
-        assert x.shape[-1] == self.d, f"RotatedHyperEllipsoid needs d={self.d} inputs"
+    @property
+    def ymin(self) -> Float[Array, ""]:
+        return jnp.asarray(0.0)
 
-        if self.normalized:
-            lo, hi = self.domain
-            x = lo + (hi - lo) * x
-
+    def f(self, x: Float[Array, "... d"]) -> Float[Array, "..."]:
         # port of R implementation from https://www.sfu.ca/~ssurjano/Code/rothypr.html
         inner = jnp.cumsum(x**2, axis=-1)
         y = jnp.sum(inner, axis=-1)
-
-        if self.normalized:
-            y = y - self.ymin
         return y
 
 
-class Sphere(eqx.Module):
+class Sphere(TestFunction):
     """
     The Sphere function has d local minima except for the global one. It is continuous, convex and unimodal.
     `rescaled=True` is the form of Picheny et al. (2012), on [0, 1]^d, standardized by the mean and
@@ -133,15 +120,17 @@ class Sphere(eqx.Module):
 
     d: int
     rescaled: bool = False
-    normalized: bool = False
 
     @property
-    def domain(self) -> tuple[float, float]:
-        return (0.0, 1.0) if self.rescaled else (-5.12, 5.12)
+    def domain(self) -> tuple[Float[Array, "d"], Float[Array, "d"]]:
+        lo = jnp.full(self.d, 0.0 if self.rescaled else -5.12)
+        hi = jnp.full(self.d, 1.0 if self.rescaled else 5.12)
+        return lo, hi
 
     @property
-    def ymin(self) -> float:
-        return -self.mean / self.sd if self.rescaled else 0.0
+    def ymin(self) -> Float[Array, ""]:
+        ymin = -self.mean / self.sd if self.rescaled else 0.0
+        return jnp.asarray(ymin)
 
     @property
     def mean(self) -> float:
@@ -155,14 +144,7 @@ class Sphere(eqx.Module):
         squared_weight_sum = (4 ** (self.d + 1) - 4) / 3
         return 899 * (squared_weight_sum / 5460) ** 0.5
 
-    @eqx.filter_jit
-    def __call__(self, x: Float[Array, "... d"]) -> Float[Array, "..."]:
-        assert x.shape[-1] == self.d, f"Sphere needs d={self.d} inputs"
-
-        if self.normalized:
-            lo, hi = self.domain
-            x = lo + (hi - lo) * x
-
+    def f(self, x: Float[Array, "... d"]) -> Float[Array, "..."]:
         if self.rescaled:
             # port of R implementation from https://www.sfu.ca/~ssurjano/Code/spherefmodr.html
             ii = jnp.arange(1, x.shape[-1] + 1, dtype=x.dtype)
@@ -170,42 +152,35 @@ class Sphere(eqx.Module):
         else:
             # port of R implementation from https://www.sfu.ca/~ssurjano/Code/spherefr.html
             y = jnp.sum(x**2, axis=-1)
-
-        if self.normalized:
-            y = y - self.ymin
         return y
 
 
-class SumPowers(eqx.Module):
+class SumPowers(TestFunction):
     """
     The Sum of Different Powers function is unimodal.
     See https://www.sfu.ca/~ssurjano/sumpow.html for original implementation and more details.
     """
 
     d: int
-    normalized: bool = False
 
-    domain: ClassVar[tuple[float, float]] = (-1.0, 1.0)
-    ymin: ClassVar[float] = 0.0
+    @property
+    def domain(self) -> tuple[Float[Array, "d"], Float[Array, "d"]]:
+        lo = jnp.full(self.d, -1.0)
+        hi = jnp.full(self.d, 1.0)
+        return lo, hi
 
-    @eqx.filter_jit
-    def __call__(self, x: Float[Array, "... d"]) -> Float[Array, "..."]:
-        assert x.shape[-1] == self.d, f"SumPowers needs d={self.d} inputs"
+    @property
+    def ymin(self) -> Float[Array, ""]:
+        return jnp.asarray(0.0)
 
-        if self.normalized:
-            lo, hi = self.domain
-            x = lo + (hi - lo) * x
-
+    def f(self, x: Float[Array, "... d"]) -> Float[Array, "..."]:
         # port of R implementation from https://www.sfu.ca/~ssurjano/Code/sumpowr.html
         ii = jnp.arange(1, x.shape[-1] + 1)
         y = jnp.sum(jnp.abs(x) ** (ii + 1), axis=-1)
-
-        if self.normalized:
-            y = y - self.ymin
         return y
 
 
-class SumSquares(eqx.Module):
+class SumSquares(TestFunction):
     """
     The Sum Squares function, also referred to as the Axis Parallel Hyper-Ellipsoid function, has no local minimum except the global one.
     It is continuous, convex and unimodal.
@@ -213,60 +188,48 @@ class SumSquares(eqx.Module):
     """
 
     d: int
-    normalized: bool = False
 
-    domain: ClassVar[tuple[float, float]] = (-5.12, 5.12)
-    ymin: ClassVar[float] = 0.0
+    @property
+    def domain(self) -> tuple[Float[Array, "d"], Float[Array, "d"]]:
+        lo = jnp.full(self.d, -5.12)
+        hi = jnp.full(self.d, 5.12)
+        return lo, hi
 
-    @eqx.filter_jit
-    def __call__(self, x: Float[Array, "... d"]) -> Float[Array, "..."]:
-        assert x.shape[-1] == self.d, f"SumSquares needs d={self.d} inputs"
+    @property
+    def ymin(self) -> Float[Array, ""]:
+        return jnp.asarray(0.0)
 
-        if self.normalized:
-            lo, hi = self.domain
-            x = lo + (hi - lo) * x
-
+    def f(self, x: Float[Array, "... d"]) -> Float[Array, "..."]:
         # port of R implementation from https://www.sfu.ca/~ssurjano/Code/sumsqur.html
         ii = jnp.arange(1, x.shape[-1] + 1)
         y = jnp.sum(ii * x**2, axis=-1)
-
-        if self.normalized:
-            y = y - self.ymin
         return y
 
 
-class Trid(eqx.Module):
+class Trid(TestFunction):
     """
     The Trid function has no local minimum except the global one.
     See https://www.sfu.ca/~ssurjano/trid.html for original implementation and more details.
     """
 
     d: int
-    normalized: bool = False
 
     @property
-    def domain(self) -> tuple[float, float]:
-        return -float(self.d**2), float(self.d**2)
+    def domain(self) -> tuple[Float[Array, "d"], Float[Array, "d"]]:
+        lo = jnp.full(self.d, -float(self.d**2))
+        hi = jnp.full(self.d, float(self.d**2))
+        return lo, hi
 
     @property
-    def ymin(self) -> float:
-        return -self.d * (self.d + 4) * (self.d - 1) / 6
+    def ymin(self) -> Float[Array, ""]:
+        ymin = -self.d * (self.d + 4) * (self.d - 1) / 6
+        return jnp.asarray(ymin)
 
-    @eqx.filter_jit
-    def __call__(self, x: Float[Array, "... d"]) -> Float[Array, "..."]:
-        assert x.shape[-1] == self.d, f"Trid needs d={self.d} inputs"
-
-        if self.normalized:
-            lo, hi = self.domain
-            x = lo + (hi - lo) * x
-
+    def f(self, x: Float[Array, "... d"]) -> Float[Array, "..."]:
         # port of R implementation from https://www.sfu.ca/~ssurjano/Code/tridr.html
         sum1 = jnp.sum((x - 1) ** 2, axis=-1)
         sum2 = jnp.sum(x[..., 1:] * x[..., :-1], axis=-1)
         y = sum1 - sum2
-
-        if self.normalized:
-            y = y - self.ymin
         return y
 
 

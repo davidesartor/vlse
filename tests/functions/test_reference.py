@@ -10,7 +10,7 @@ import pytest
 
 from cases import CASES, KNOWN_R_BUGS
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SFU = os.path.join(ROOT, "tools", "sfu")
 EVAL_R = os.path.join(ROOT, "tools", "eval_r.R")
 N = 64

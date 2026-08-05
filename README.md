@@ -100,8 +100,8 @@ eqx.filter_jit(lambda f, x: f(x))(vlse.Ackley(d=5, normalized=True), x)
 
 ## Functions
 
-All 48 import from the top level; the submodules follow the SFU site's sections. `(d)` marks the
-functions that take a dimension.
+All 48 import from the top level; `vlse.functions` holds them, split into the SFU site's sections.
+`(d)` marks the functions that take a dimension.
 
 | section | functions |
 | --- | --- |
@@ -135,7 +135,7 @@ uv run --no-sync pytest tests -q                 # ~10s
 uv run --no-sync python tools/fetch_sfu.py       # refresh tools/sfu/*.R from the SFU site
 ```
 
-Parity is checked live: `tests/test_reference.py` shells out to `Rscript`, evaluates the vendored R
+Parity is checked live: `tests/functions/test_reference.py` shells out to `Rscript`, evaluates the vendored R
 sources, and compares — there is no frozen golden data. Without R on `PATH` that one module skips and
 the rest of the suite still runs. CI covers 3.10–3.13 plus a `--resolution lowest-direct` job, so the
 dependency floors are real ones.
