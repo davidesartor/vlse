@@ -209,9 +209,7 @@ class GoldsteinPrice(TestFunction):
 
     @property
     def ymin(self) -> Float[Array, ""]:
-        return jnp.asarray(
-            (float(jnp.log(3.0) - 8.693) / 2.427) if self.rescaled else 3.0
-        )
+        return jnp.asarray((jnp.log(3.0) - 8.693) / 2.427 if self.rescaled else 3.0)
 
     def f(self, x: Float[Array, "... 2"]) -> Float[Array, "..."]:
         if self.rescaled:
@@ -521,7 +519,6 @@ class Shekel(TestFunction):
             -10.5364,
         ]
         return jnp.asarray(ymins[self.m - 1])
-        
 
     def f(self, x: Float[Array, "... d"]) -> Float[Array, "..."]:
         # port of R implementation from https://www.sfu.ca/~ssurjano/Code/shekelr.html
