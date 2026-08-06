@@ -1,27 +1,37 @@
 # Benchmarks
 
-Two separate things are measured, so they live in two separate folders with their own results and
-README:
+Two things are measured, so there are two benches with their own results and README:
 
-- [`functions/`](functions/) — how fast the ported test functions evaluate. Throughput of one
-  function against batch size and against dimension, swept on every GPU and CPU of one cluster.
+- [`functions/`](functions/) — how fast the ported test functions evaluate.
 - [`optim/`](optim/) — how fast `vlse.optim.lbfgsb` solves, against scipy's Fortran L-BFGS-B on the
-  same objective, over dimension and over a multistart batch.
+  same objective.
 
-The results stay separate — `functions/` writes `functions/results/`, `optim/` writes
-`optim/results/` — but the machinery around them is one implementation, so a point on one page means
-what a point on the other does:
+Both sweep the same two axes — grow the batch at a fixed dimension, grow the dimension at a fixed
+batch — on every GPU and CPU of one cluster, and share one entry point, run from the repo root:
 
-- `sweep.py` — the power-of-two climb, the block sizing, the cache clearing between points, and the
-  rules that end a sweep. A bench supplies a size and gets back a call to time.
-- `runinfo.py` — the constants table and the locked row append every parallel job writes into.
-- `submit.py` — one Slurm job array per GPU chip type the cluster exposes, plus one per CPU core
-  count. Takes the bench as its first argument: `uv run python bench/submit.py functions`.
-- `plot.py`, `style.py` — the median line with its interval shaded, and the hue per hardware class.
-  Every page is written twice: the interactive `.html` and an `.svg` still of the same panel.
+```bash
+uv run python -m bench <functions|optim> run     [--sweep batch|dim] ...   # one sweep, one row
+uv run python -m bench <functions|optim> plot                              # every row, one page
+uv run python -m bench <functions|optim> submit  [--dry-run]               # one Slurm array per chip
+```
 
-Everything is run from the repo root.
+`plot` needs plotly, which is not a project dep:
+`uv run --with plotly --with "kaleido==0.2.1" python -m bench functions plot`.
 
-Both measure speed. Correctness lives in `tests/`, split the same way — `tests/functions/` against
-the R sources, `tests/optim/` against scipy — and `tools/slurm/submit_tests.py` runs that suite on
-the GPU chips that have broken a bench run.
+The results stay separate — each bench writes its own `results/` — but the machinery is one
+implementation, so a point on one page means what a point on the other does:
+
+- [`sweep.py`](sweep.py) — the power-of-two climb, the block sizing, the cache clearing between
+  points and the rules that end a sweep. A bench hands back a call to time at each size.
+- [`results.py`](results.py) — the constants table and the locked row append every parallel job
+  writes into.
+- [`submit.py`](submit.py) — one Slurm job array per GPU chip type the cluster exposes, plus one
+  per CPU core count.
+- [`plot.py`](plot.py), [`style.py`](style.py) — the median line with its interval shaded, and the
+  hue per hardware class. Every page is written twice, an interactive `.html` and an `.svg` still.
+
+A bench itself is one module — [`functions/__init__.py`](functions/__init__.py),
+[`optim/__init__.py`](optim/__init__.py) — holding only what is its own: its arguments, the call to
+time at each point, and the pages it draws.
+
+Both measure speed. Correctness lives in `tests/`, split the same way.
