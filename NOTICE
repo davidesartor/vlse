@@ -24,3 +24,16 @@ This package is a derivative work: every function is a translation of the corres
 into JAX, and is therefore released under the same license (GPL-2.0-only, see LICENSE).
 
 Deviations from the published R sources are documented in README.md.
+
+---
+
+`src/vlse/optim/lbfgsb.py` implements the algorithm of
+
+    R. H. Byrd, P. Lu, J. Nocedal and C. Zhu. A Limited Memory Algorithm for Bound Constrained
+    Optimization (1995), SIAM Journal on Scientific and Statistical Computing, 16, 5, 1190-1208.
+
+following the reference Fortran that scipy wraps, and was developed alongside JAXopt's
+`_src/lbfgsb.py` (https://github.com/google/jaxopt, Copyright 2021 Google LLC, Apache-2.0), which
+implements the same algorithm for the same array library and which the Cauchy-point and subspace-
+minimisation routines here resemble in places. The line search, solver loop, history handling and
+API are unrelated to it.

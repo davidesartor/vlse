@@ -272,7 +272,7 @@ wheels = [
 
 [[package]]
 name = "jaxvlse"
-version = "0.1.0"
+version = "0.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "equinox" },
@@ -291,6 +291,9 @@ bench = [
 dev = [
     { name = "pytest" },
     { name = "pytest-xdist" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 
 [package.metadata]
@@ -307,7 +310,8 @@ bench = [
 ]
 dev = [
     { name = "pytest", specifier = ">=9.1.1" },
-    { name = "pytest-xdist", specifier = ">=3.6" },
+    { name = "pytest-xdist", specifier = ">=3.8.0" },
+    { name = "scipy", specifier = ">=1.15.3" },
 ]
 
 [[package]]

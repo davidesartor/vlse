@@ -1,6 +1,6 @@
 """JAX ports of the SFU Virtual Library of Simulation Experiments test functions."""
 
-from vlse import functions as functions
+from vlse import functions as functions, optim as optim
 from vlse.functions import (
     Ackley,
     Beale,

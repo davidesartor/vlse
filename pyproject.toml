@@ -47,10 +47,10 @@ bench = [
 ]
 dev = [
     "pytest>=9.1.1",
-    "pytest-xdist>=3.6",
+    "pytest-xdist>=3.8.0",
+    "scipy>=1.15.3",
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["tests"]
-# the parity module spawns an Rscript per case, so the suite is dominated by process startup
-addopts = "-n auto"
+addopts = ["-n", "16"]
