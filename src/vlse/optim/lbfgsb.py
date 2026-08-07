@@ -223,9 +223,9 @@ def _wolfe_search(
     start: _Endpoint,
     initial_step: Scalar,
     max_step: Scalar,
-    max_evaluations: int,
-    c1: float,
-    c2: float,
+    max_evaluations: int | Int[Array, ""],
+    c1: float | Float[Array, ""],
+    c2: float | Float[Array, ""],
     eps: float,
 ) -> tuple[_Endpoint, Int[Array, ""]]:
     """Strong-Wolfe search, Nocedal & Wright Alg. 3.5-3.6 as one loop.
@@ -376,12 +376,12 @@ def minimise(
     x0: Float[Array, "p"],
     bounds: Optional[tuple[Float[Array, "p"], Float[Array, "p"]]] = None,
     args: tuple = (),
-    tol: float = 1e-5,
-    max_iterations: int = 100,
+    tol: float | Float[Array, ""] = jnp.array(1e-5),
+    max_iterations: int | Int[Array, ""] = jnp.array(100),
     history_length: int = 10,
-    max_linesearch: int = 30,
-    c1: float = 1e-4,
-    c2: float = 0.9,
+    max_linesearch: int | Int[Array, ""] = jnp.array(30),
+    c1: float | Float[Array, ""] = jnp.array(1e-4),
+    c2: float | Float[Array, ""] = jnp.array(0.9),
 ) -> LBFGSBState:
     """Minimise `fun(x, *args)` over a box, stopping when the projected gradient is below tol.
 
