@@ -5,7 +5,6 @@ lookback.
 """
 
 import argparse
-import csv
 import getpass
 import glob
 import importlib
@@ -14,10 +13,11 @@ import re
 import subprocess
 import time
 
+from . import results
 from .style import SEGMENTS
 from .submit import SKIP_CHIPS
 
-BENCHES = ("functions", "optim")
+BENCHES = ("dispatch", "functions", "optim")
 BAR_WIDTH = 24
 COLORS = {
     "done": "\033[32m",
@@ -53,9 +53,8 @@ def landed(directory: str) -> set[tuple[str, str, str, int]]:
         label = os.path.basename(path).removesuffix(".csv")
         if label == "configs":
             continue
-        with open(path) as fh:
-            for row in csv.DictReader(fh):
-                rows.add((label, row["sweep"], row["dtype"], int(row["size"])))
+        for row in results.timings(path):
+            rows.add((label, row["sweep"], row["dtype"], int(row["size"])))
     return rows
 
 

@@ -32,5 +32,5 @@ exponent="${rest##*:}"
 echo "config: $config"
 
 uv run --with "jax[cuda12]" python -m bench optim run \
-  --sweep "$sweep" --solver "$solver" --exponent "$exponent" --label "$solver-$label" \
+  --sweep "$sweep" --solver "$solver" --exponent "$exponent" --label "$label" \
   --repeats "${REPEATS:-12}" --reps "${REPS:-5}" --dim "${DIM:-64}" --batch "${BATCH:-1024}"

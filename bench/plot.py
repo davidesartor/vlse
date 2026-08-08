@@ -1,10 +1,5 @@
-"""Drawing shared by both benches: one line per device with a 95% band around the median.
+"""Drawing shared by the benches: one line per device with a 95% band around the median."""
 
-Each bench builds its own `Page`s -- axes, titles and which curves belong together -- and what
-lives here is how a device is coloured, how the band is computed, and the figure itself.
-"""
-
-import csv
 import glob
 import os
 import statistics
@@ -12,16 +7,17 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Callable
 
+from . import results
 from .style import CHIP_SEGMENT, INK, RAMPS
 
 Curves = dict[int, list[float]]
-# how far clear of its host's dispatch latency a point must be to survive the subtraction
-FLOOR_CLEARANCE = 2.0
+
+DISPATCH = os.path.join(os.path.dirname(__file__), "dispatch", "results")
 
 
 @dataclass
 class Page:
-    """One figure: every series drawn as a median line with its interval shaded, both axes log."""
+    """One figure: every series a median line with its interval shaded, both axes log."""
 
     name: str
     title: str
@@ -33,57 +29,50 @@ class Page:
 
 
 def hardware_class(label: str) -> str:
-    """Which hue a device gets. An unlisted chip is drawn as a consumer card, the safe default."""
-    chip = label.removeprefix("jax-")
-    # scipy is the baseline rather than another device, so it gets its own group
-    if chip.startswith("scipy"):
+    """Which hue a device gets; an unlisted chip is drawn as a consumer card."""
+    if label == "scipy":
         return "scipy"
-    if chip.startswith("cpu"):
+    if label.startswith("cpu"):
         return "cpu"
-    return CHIP_SEGMENT.get(chip, "consumer")
+    return CHIP_SEGMENT.get(label, "consumer")
+
+
+def latencies() -> dict[str, float]:
+    """label -> the host's per-call dispatch latency, as the dispatch bench measured it.
+
+    Minimum of that bench's samples: timing noise is one-sided, so the smallest is the latency.
+    """
+    floors = {}
+    for path in sorted(glob.glob(os.path.join(DISPATCH, "*.csv"))):
+        label = os.path.basename(path).removesuffix(".csv")
+        if label == "configs":
+            continue
+        seconds = [float(row["seconds"]) for row in results.timings(path)]
+        if seconds:
+            floors[label] = min(seconds)
+    return floors
+
+
+def floor_of(label: str, floors: dict[str, float]) -> float:
+    """This label's latency; scipy dispatches nothing, so it has none to subtract."""
+    return floors.get(label, 0.0)
 
 
 def throughputs(
-    timings: dict[int, list[float]], work_at: Callable[[int], float]
+    timings: dict[int, list[float]], work_at: Callable[[int], float], floor: float
 ) -> Curves:
-    """One device's timings as throughputs, less the host's per-call dispatch latency.
-
-    Every call is blocked on, so the round trip to the device adds to the kernel rather than
-    overlapping it, and the cheapest point of the sweep is nearly all round trip: that is the
-    latency. It is host-side, so it differs by an order of magnitude between an x86 and an arm
-    host and would otherwise be the only thing the flat left of these curves shows.
-
-    A point not clear of the floor by `FLOOR_CLEARANCE` is the difference of two near-equal noisy
-    numbers, so it is dropped rather than drawn.
-    """
-    # pooled over every point that is still flat rather than read off one of them: the flat run is
-    # noisy enough that its cheapest point is a dip, and subtracting a dip inflates what is left
-    cheapest = min(statistics.median(samples) for samples in timings.values())
-    floor = statistics.median(
-        [
-            seconds
-            for samples in timings.values()
-            if statistics.median(samples) < 1.5 * cheapest
-            for seconds in samples
-        ]
-    )
+    """Timings as throughputs, less the dispatch latency; a point at or under it is dropped whole."""
     return {
-        point: [
-            work_at(point) / (seconds - floor) for seconds in samples if seconds > floor
-        ]
+        point: [work_at(point) / (seconds - floor) for seconds in samples]
         for point, samples in timings.items()
-        if statistics.median(samples) > FLOOR_CLEARANCE * floor
+        if min(samples) > floor
     }
 
 
 def load(
     directory: str, sweep: str, work_at: Callable[[int], float]
 ) -> dict[tuple[str, str], Curves]:
-    """(label, dtype) -> {axis point: throughputs}, from this sweep's rows of every `<label>.csv`.
-
-    Label comes off the file name rather than configs.csv, so a device still plots while its jobs
-    are mid-flight and its constants have not landed yet.
-    """
+    """(label, dtype) -> {axis point: throughputs}, from this sweep's rows of every `<label>.csv`."""
     timings: dict[tuple[str, str], dict[int, list[float]]] = defaultdict(
         lambda: defaultdict(list)
     )
@@ -91,27 +80,25 @@ def load(
         label = os.path.basename(path).removesuffix(".csv")
         if label == "configs":
             continue
-        with open(path) as fh:
-            # a rerun appends rather than replacing, so the last row for a timing is the live one
-            latest = {}
-            for row in csv.DictReader(fh):
-                if row["sweep"] == sweep:
-                    key = (row["run"], row["repeat"], row["dtype"], row["size"])
-                    latest[key] = row["seconds"]
+        # a rerun appends, so the last row for a timing is the live one
+        latest = {}
+        for row in results.timings(path):
+            if row["sweep"] == sweep:
+                key = (row["run"], row["repeat"], row["dtype"], row["size"])
+                latest[key] = row["seconds"]
         for (_, _, dtype, size), seconds in latest.items():
             timings[label, dtype][int(size)].append(float(seconds))
 
-    # a device whose every point sat in its own dispatch latency has no curve left to draw
-    curves = {key: throughputs(points, work_at) for key, points in timings.items()}
+    floors = latencies()
+    curves = {
+        (label, dtype): throughputs(points, work_at, floor_of(label, floors))
+        for (label, dtype), points in timings.items()
+    }
     return {key: curve for key, curve in curves.items() if curve}
 
 
 def band(samples: list[float]) -> tuple[float, float, float]:
-    """Median throughput and the 95% interval on it, from the binomial order statistics.
-
-    Median rather than mean because timing noise is one-sided -- contention only ever slows a
-    call down -- so one stalled block drags the mean off the curve and the median ignores it.
-    """
+    """Median and its 95% interval from the binomial order statistics."""
     ordered = sorted(samples)
     rank = max(int(len(ordered) / 2 - 1.96 * len(ordered) ** 0.5 / 2), 0)
     return statistics.median(ordered), ordered[rank], ordered[len(ordered) - 1 - rank]
@@ -122,7 +109,6 @@ def peak(curve: Curves) -> float:
 
 
 def translucent(hex_color: str, alpha: float) -> str:
-    """The same colour as an rgba string, which is the only form a plotly fill takes."""
     r, g, b = (int(hex_color[i : i + 2], 16) for i in (1, 3, 5))
     return f"rgba({r},{g},{b},{alpha})"
 
@@ -147,7 +133,7 @@ def colors(peaks: dict[str, float]) -> dict[str, str]:
 
 
 def fastest_first(peaks: dict[str, float]) -> list[str]:
-    """Legend order under `grouped`: classes fastest first, and inside a class its devices."""
+    """Legend order: classes fastest first, and inside a class its devices."""
     within = by_class(peaks)
     return [
         label
@@ -157,10 +143,10 @@ def fastest_first(peaks: dict[str, float]) -> list[str]:
 
 
 def figure(page: Page, out: str) -> None:
-    """Write one page twice: the interactive `.html`, and an `.svg` still of it for the READMEs."""
+    """Write one page twice: the interactive `.html`, and an `.svg` still for the READMEs."""
     import plotly.graph_objects as go
 
-    if not page.series:  # a partial run, before that dtype's sweeps have landed
+    if not page.series:
         print(f"no curves yet, skipping {page.name}")
         return
 
@@ -179,7 +165,6 @@ def figure(page: Page, out: str) -> None:
                 y=[s[2] for s in stats] + [s[1] for s in reversed(stats)],
                 fill="toself",
                 fillcolor=translucent(hue[label], 0.22),
-                # explicit: plotly defaults a short trace to lines+markers, and this is a polygon
                 mode="lines",
                 line={"width": 0},
                 legendgroup=group,

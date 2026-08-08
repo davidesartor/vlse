@@ -20,12 +20,15 @@ PAGES = {"batch": "scaling-batch", "dim": "scaling-dim"}
 # one CPU job per width, all on one node; 16 keeps every width on one socket
 CORES = "1,2,4,8,16"
 EXPONENTS = range(0, 25)
+REPEATS = 12
+WALLTIME = "00:05:00"
 # scipy is CPU only, so GPU jobs run jax alone
 GPU_CONFIGS = tuple(f"jax:{sweep}:{e}" for sweep in SWEEPS for e in EXPONENTS)
+SCIPY = "scipy"
 NOTE = (
     "median of per-call throughputs, 95% interval on the median shaded; "
     "L-BFGS-B to a projected gradient of 1e-9, jit warmed up"
-    "<br>the host's per-call dispatch latency is subtracted, and a point within 2x of it dropped"
+    "<br>the host's per-call dispatch latency, measured separately, is subtracted off every point"
     "<br>only the hpc parts run f64 at full rate; the rest are 1/32 or 1/64 in hardware"
 )
 
@@ -43,17 +46,22 @@ def cpu_configs(cores: int) -> tuple[str, ...]:
     )
 
 
+def canonical_label(label: str, solver: str) -> str:
+    """scipy is one baseline row whatever it ran on, every other row is just the device."""
+    return SCIPY if solver == "scipy" else label.removeprefix("jax-")
+
+
 def task_key(device: str, config: str) -> tuple[str, str, str, int]:
     """The (label, sweep, dtype, point) one array task writes, so the board can look it up."""
     solver, sweep, exponent = config.split(":")
-    return f"{solver}-{device}", sweep, "f64", 2 ** int(exponent)
+    return canonical_label(device, solver), sweep, "f64", 2 ** int(exponent)
 
 
 def add_run_arguments(p: argparse.ArgumentParser) -> None:
     p.add_argument(
         "--label",
         default=None,
-        help="row label, default <solver>-<platform>-<device kind>",
+        help="row label, default <platform>-<device kind>, or scipy for the scipy solver",
     )
     p.add_argument("--fn", default="Ackley", help="vlse class name")
     p.add_argument("--solver", choices=("jax", "scipy"), default="jax")
@@ -207,7 +215,7 @@ def prepare(args) -> Run:
             dict(d="", batch=args.batch),
         )
 
-    label = args.label or f"{args.solver}-{device_label(device)}"
+    label = canonical_label(args.label or device_label(device), args.solver)
     return Run(
         label=label,
         device=device,
@@ -243,19 +251,13 @@ def pages(args, results: str):
     for sweep, (axis_name, title, solves_at) in axes.items():
         curves = load(results, sweep, solves_at)
         reference = {
-            "scipy": curve
-            for (label, _), curve in curves.items()
-            if label.startswith("scipy")
+            SCIPY: curve for (label, _), curve in curves.items() if label == SCIPY
         }
         # the backend is the same for every device here, so the label is just the chip
-        chips = {
-            label.removeprefix("jax-")
-            for label, _ in curves
-            if label.startswith("jax-")
-        }
+        chips = {label for label, _ in curves if label != SCIPY}
         if wanted is not None:
             chips &= wanted
-        series = {chip: curves[f"jax-{chip}", "f64"] for chip in sorted(chips)}
+        series = {chip: curves[chip, "f64"] for chip in sorted(chips)}
         yield Page(
             name=f"{PAGES[sweep]}-fp64",
             title=f"{title}, fp64",

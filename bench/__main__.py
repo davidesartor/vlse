@@ -8,7 +8,7 @@ from . import status, submit, sweep
 from .plot import figure
 from .results import RUN, Results
 
-BENCHES = ("functions", "optim")
+BENCHES = ("dispatch", "functions", "optim")
 
 
 def directory(bench, *parts: str) -> str:
@@ -47,7 +47,9 @@ def main() -> None:
         )
         sweep.add_arguments(sweeper)
         bench.add_plot_arguments(commands.add_parser("plot"))
-        submit.add_arguments(commands.add_parser("submit"), bench.CORES)
+        submit.add_arguments(
+            commands.add_parser("submit"), bench.CORES, bench.REPEATS, bench.WALLTIME
+        )
 
         for command, action in (("run", run), ("plot", plot), ("submit", submit.run)):
             commands.choices[command].set_defaults(

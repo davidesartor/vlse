@@ -18,6 +18,8 @@ PAGES = {"batch": "scaling-batch", "dim": "scaling-dim"}
 # one CPU job per width, all on one node; 16 keeps every width on one socket
 CORES = "1,2,4,8,16"
 EXPONENTS = range(0, 25)
+REPEATS = 12
+WALLTIME = "00:05:00"
 # what one array task runs: one dtype at one sweep at one size
 GPU_CONFIGS = tuple(
     f"{dtype}:{sweep}:{e}" for dtype in DTYPES for sweep in SWEEPS for e in EXPONENTS
@@ -25,7 +27,7 @@ GPU_CONFIGS = tuple(
 NOTE = (
     "median of per-call throughputs, 95% interval on the median shaded; "
     "jit warmed up, batch resident on the device"
-    "<br>the host's per-call dispatch latency is subtracted, and a point within 2x of it dropped"
+    "<br>the host's per-call dispatch latency, measured separately, is subtracted off every point"
 )
 # what the hardware does with that dtype
 CAVEATS = {

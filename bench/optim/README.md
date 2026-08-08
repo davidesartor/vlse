@@ -80,8 +80,8 @@ on small batches is the while-loop condition sync, and CUDA graphs are what shav
 ## The result files
 
 `results/<label>.csv` — one file per device, both sweeps in it, one row per timing
-(`run,repeat,sweep,dtype,size,seconds`). The label carries the solver and, on CPU, the width:
-`jax-a100`, `jax-cpu-1core`, `jax-cpu-16core`, `scipy-cpu-1core`.
+(`run,repeat,sweep,dtype,size,seconds`). The label is the device, on CPU with its width:
+`a100`, `cpu-1core`, `cpu-16core`. The scipy baseline is labelled `scipy`.
 
 `results/configs.csv` — the constants of each run, keyed by `label,sweep,dtype`, and beyond the
 shared columns: `solver`, `tol`, `max_iterations`, `threads`, `shards`, `devices`.
@@ -90,7 +90,9 @@ shared columns: `solver`, `tol`, `max_iterations`, `threads`, `shards`, `devices
 
 - The small end of either axis is per-call overhead, not solve cost: scipy pays a Python call and a
   host round trip per evaluation, ours pays one dispatch for the whole `while_loop`. Read a win
-  there as a harness result.
+  there as a harness result. The jax curves have what [`../dispatch/`](../dispatch/) measured
+  subtracted off every point; scipy has no dispatch to subtract, since the Python call per
+  evaluation is the measurement rather than an overhead on it.
 - Iteration counts are not held equal. Both solvers run to the same projected-gradient tolerance
   from the same starts; solves per second at a fixed tolerance is the whole measurement.
 - Nodes are shared and clocks vary with what else is on the machine. Order-of-magnitude picture,

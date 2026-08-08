@@ -92,7 +92,10 @@ parts HBM, and at these sizes the plateau is bandwidth.
 ## Caveats
 
 - Per-batch throughput is what these functions are used for (sampling, surrogate fitting, population
-  optimizers). Read the small end of either axis as latency: JAX is dispatch-bound there.
+  optimizers). Read the small end of either axis as latency: JAX is dispatch-bound there. What
+  [`../dispatch/`](../dispatch/) measured is subtracted off every point, so the flat left end is the
+  device and not the host — a point whose timings fall under that latency is dropped rather than
+  reported, which is where a curve starts short of its neighbours.
 - Only the `hpc` segment has f64 at half the f32 rate. Everything else runs it at 1/32 or 1/64 in
   hardware, two orders below its f32 line. Those curves are honest, and the gap is the point.
 - Nodes are shared and clocks vary with what else is on the machine. Order-of-magnitude picture,

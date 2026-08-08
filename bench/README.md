@@ -15,6 +15,12 @@ uv run python -m bench <functions|optim> plot                              # eve
 uv run python -m bench <functions|optim> submit  [--dry-run]               # one Slurm array per chip
 ```
 
+Beside them, [`dispatch/`](dispatch/) measures one number per device rather than a curve: what a
+blocking jitted call costs before any work happens. Both benches' plots subtract it off every
+point, since every timing they take is blocked on and the small end of either axis is that round
+trip and nothing else. It is a property of the host and the driver, so it is run once and left
+alone.
+
 `plot` needs plotly, which is not a project dep:
 `uv run --with plotly --with "kaleido==0.2.1" python -m bench functions plot`.
 
@@ -31,7 +37,7 @@ implementation, so a point on one page means what a point on the other does:
   hue per hardware class. Every page is written twice, an interactive `.html` and an `.svg` still.
 
 A bench itself is one module — [`functions/__init__.py`](functions/__init__.py),
-[`optim/__init__.py`](optim/__init__.py) — holding only what is its own: its arguments, the call to
-time at each point, and the pages it draws.
+[`optim/__init__.py`](optim/__init__.py), [`dispatch/__init__.py`](dispatch/__init__.py) — holding
+only what is its own: its arguments, the call to time at each point, and the pages it draws.
 
 Both measure speed. Correctness lives in `tests/`, split the same way.

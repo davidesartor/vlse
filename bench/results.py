@@ -38,6 +38,12 @@ def config_key(row: dict) -> tuple[str, ...]:
     return tuple(row[field] for field in CONFIG_KEY)
 
 
+def timings(path: str) -> list[dict[str, str]]:
+    """Timing rows of one label's file, tolerating a header repeated by a concurrent writer."""
+    with open(path) as fh:
+        return [row for row in csv.DictReader(fh) if row["size"] != "size"]
+
+
 def device_label(device) -> str:
     """<platform>-<device kind>, lowered into something that can sit in a file name."""
     return f"{device.platform}-{device.device_kind}".lower().replace(" ", "_")
@@ -87,9 +93,13 @@ class Results:
         os.makedirs(self.directory, exist_ok=True)
         with open(path, "a+", newline="") as fh:
             fcntl.flock(fh, fcntl.LOCK_EX)
+            # a read under the lock, not a cached st_size: NFS can report this file empty
+            # to a second node while the first node's header is still only server-side
+            fh.seek(0)
+            already_headed = bool(fh.readline())
             fh.seek(0, os.SEEK_END)
             w = csv.DictWriter(fh, ROW_FIELDS)
-            if not fh.tell():
+            if not already_headed:
                 w.writeheader()
             w.writerows(
                 {

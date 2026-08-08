@@ -16,14 +16,17 @@ SKIP_CHIPS = (
 ALWAYS_PARTITIONS = ("gpu", "gpu-preempt")
 CPU_FEATURE = "intel8352y"
 CPU_PARTITIONS = "cpu,cpu-preempt"
-WALLTIME = "00:05:00"
 
 
-def add_arguments(p: argparse.ArgumentParser, cores: str) -> None:
+def add_arguments(
+    p: argparse.ArgumentParser, cores: str, repeats: int, walltime: str
+) -> None:
     p.add_argument(
         "--cores", default=cores, help="comma separated core counts, one CPU job each"
     )
-    p.add_argument("--repeats", type=int, default=12, help="sequential runs per point")
+    p.add_argument(
+        "--repeats", type=int, default=repeats, help="sequential runs per point"
+    )
     p.add_argument(
         "--chips", default=None, help="comma separated subset of the GPU chip types"
     )
@@ -37,8 +40,8 @@ def add_arguments(p: argparse.ArgumentParser, cores: str) -> None:
         default=None,
         help="the node every CPU job runs on, default an idle one",
     )
-    p.add_argument("--gpu-time", default=WALLTIME)
-    p.add_argument("--cpu-time", default=WALLTIME)
+    p.add_argument("--gpu-time", default=walltime)
+    p.add_argument("--cpu-time", default=walltime)
     p.add_argument("--skip-gpu", action="store_true")
     p.add_argument("--skip-cpu", action="store_true")
     p.add_argument("--dry-run", action="store_true")

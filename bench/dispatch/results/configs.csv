@@ -1,0 +1,20 @@
+label,sweep,dtype,device,machine,host,fn,d,batch,version
+1080_ti,dispatch,f32,NVIDIA GeForce GTX 1080 Ti,NVIDIA GeForce GTX 1080 Ti,gypsum-gpu134,,1,1,0.11.0
+2080_ti,dispatch,f32,NVIDIA GeForce RTX 2080 Ti,NVIDIA GeForce RTX 2080 Ti,gypsum-gpu181,,1,1,0.11.0
+a100,dispatch,f32,NVIDIA A100-SXM4-80GB,NVIDIA A100-SXM4-80GB,uri-gpu004,,1,1,0.11.0
+a16,dispatch,f32,NVIDIA A16,NVIDIA A16,gpu048,,1,1,0.11.0
+a40,dispatch,f32,NVIDIA A40,NVIDIA A40,gpu008,,1,1,0.11.0
+a4000,dispatch,f32,NVIDIA RTX A4000,NVIDIA RTX A4000,gpu047,,1,1,0.11.0
+cpu-16core,dispatch,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,,1,1,0.11.0
+cpu-1core,dispatch,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,,1,1,0.11.0
+cpu-2core,dispatch,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,,1,1,0.11.0
+cpu-4core,dispatch,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,,1,1,0.11.0
+cpu-8core,dispatch,f32,cpu,Intel(R) Xeon(R) Platinum 8352Y CPU @ 2.20GHz,umd-cscdr-cpu032,,1,1,0.11.0
+gh200,dispatch,f32,NVIDIA GH200 480GB,NVIDIA GH200 480GB,arm-gpu001,,1,1,0.11.0
+h100,dispatch,f32,NVIDIA H100 80GB HBM3,NVIDIA H100 80GB HBM3,uri-gpu012,,1,1,0.11.0
+l4,dispatch,f32,NVIDIA L4,NVIDIA L4,gpu056,,1,1,0.11.0
+l40s,dispatch,f32,NVIDIA L40S,NVIDIA L40S,gpu037,,1,1,0.11.0
+m40,dispatch,f32,Tesla M40 24GB,Tesla M40 24GB,gypsum-gpu002,,1,1,0.11.0
+rtx_8000,dispatch,f32,Quadro RTX 8000,Quadro RTX 8000,gypsum-gpu188,,1,1,0.11.0
+titan_x,dispatch,f32,NVIDIA GeForce GTX TITAN X,NVIDIA GeForce GTX TITAN X,gypsum-gpu078,,1,1,0.11.0
+v100,dispatch,f32,Tesla V100-PCIE-16GB,Tesla V100-PCIE-16GB,gpu003,,1,1,0.11.0

@@ -10,6 +10,7 @@ wheels/
 .venv
 
 # Benchmark scratch
+bench/dispatch/logs/
 bench/functions/logs/
 bench/optim/logs/
 tools/slurm/logs/
