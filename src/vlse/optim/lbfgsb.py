@@ -4,6 +4,7 @@ from typing import Callable, NamedTuple, Optional
 
 import jax
 import jax.numpy as jnp
+from jax.scipy.linalg import lu_factor, lu_solve
 from jaxtyping import Array, Bool, Float, Int, Scalar
 
 MAX_STEP = 1e10  # scipy's `big` in lnsrlb, the step cap when nothing bounds the ray
@@ -25,11 +26,15 @@ class LBFGSBState(NamedTuple):
 
 
 class _Hessian(NamedTuple):
-    """Hessian approximation B = theta*I - W @ M @ W.T in compact form, eqs. 3.2-3.4."""
+    """Compact form B = theta*I - W @ M @ W.T (eqs. 3.2-3.4), M held as an LU factorization."""
 
     theta: Scalar
     w: Float[Array, "p l"]
     m: Float[Array, "l l"]
+    m_lu: tuple[Float[Array, "l l"], Int[Array, "l"]]
+
+    def apply_m(self, v: Float[Array, "l ..."]) -> Float[Array, "l ..."]:
+        return lu_solve(self.m_lu, v)
 
 
 class _CauchyPoint(NamedTuple):
@@ -67,17 +72,16 @@ def _compact_hessian(state: LBFGSBState) -> _Hessian:
     s_dot_s = s_history @ s_history.T
     # unfilled slots get diagonal filler so M stays invertible; their W columns are zero
     slots = jnp.arange(history_length)
-    unfilled = jnp.diag(
-        (slots < history_length - state.n_updates).astype(s_dot_y.dtype)
-    )
+    empty = slots < history_length - state.n_updates
+    unfilled = jnp.diag(empty.astype(s_dot_y.dtype))
     newest_sy = jnp.where(state.n_updates > 0, s_dot_y[-1, -1], 1.0)
     newest_ss = jnp.where(state.n_updates > 0, s_dot_s[-1, -1], 1.0)
     d_block = -jnp.diag(jnp.diag(s_dot_y)) + unfilled * newest_sy
     l_block = jnp.tril(s_dot_y, -1)
     ss_block = theta * (s_dot_s + unfilled * newest_ss)
-    m = jnp.linalg.inv(jnp.block([[d_block, l_block.T], [l_block, ss_block]]))
+    m = jnp.block([[d_block, l_block.T], [l_block, ss_block]])
     w = jnp.concatenate([y_history.T, theta * s_history.T], axis=1)
-    return _Hessian(theta, w, m)
+    return _Hessian(theta, w, m, lu_factor(m))
 
 
 def _cauchy_point(
@@ -89,14 +93,11 @@ def _cauchy_point(
     eps: float,
 ) -> _CauchyPoint:
     """Generalized Cauchy point (Algorithm CP): first minimiser along the projected gradient path."""
-    theta, w, m = hessian
+    theta, w = hessian.theta, hessian.w
 
     # each coordinate's bound hit, in crossing order
-    breakpoint_of = jnp.where(
-        jnp.abs(grad) < eps,
-        jnp.inf,
-        jnp.where(grad < 0.0, (x - upper) / grad, (x - lower) / grad),
-    )
+    bound_gap = jnp.where(grad < 0.0, x - upper, x - lower)
+    breakpoint_of = jnp.where(jnp.abs(grad) < eps, jnp.inf, bound_gap / grad)
     direction = jnp.where(breakpoint_of < eps, 0.0, -grad)
     x_bound = jnp.where(direction > 0.0, upper, jnp.where(direction < 0.0, lower, x))
     order = jnp.argsort(breakpoint_of, axis=-1)
@@ -104,7 +105,7 @@ def _cauchy_point(
     widths = jnp.diff(jnp.pad(breakpoints, (1, 0), "constant"))
 
     class Walk(NamedTuple):
-        """The path quadratic at the current segment: df/ddf its derivatives, c = W.T @ (x_path - x), p = W.T @ d."""
+        """Path quadratic at the current segment: c = W.T @ (x_path - x), p = W.T @ d."""
 
         crossed: Int[Array, ""]
         df: Scalar
@@ -121,42 +122,41 @@ def _cauchy_point(
         j = order[walk.crossed]
         width = widths[walk.crossed]
         c = walk.c + width * walk.p
+        # M is symmetric, so one solve against w[j] serves every quadratic term
+        wj_m = hessian.apply_m(w[j])
         df = (
             walk.df
             + width * walk.ddf
             + grad[j] ** 2
             + theta * grad[j] * (x_bound[j] - x[j])
-            - grad[j] * jnp.dot(w[j], m @ c)
+            - grad[j] * jnp.dot(wj_m, c)
         )
         ddf = (
             walk.ddf
             - theta * grad[j] ** 2
-            - 2.0 * grad[j] * jnp.dot(w[j], m @ walk.p)
-            - grad[j] ** 2 * jnp.dot(w[j], m @ w[j])
+            - 2.0 * grad[j] * jnp.dot(wj_m, walk.p)
+            - grad[j] ** 2 * jnp.dot(wj_m, w[j])
         )
         return Walk(
             walk.crossed + 1, df, jnp.maximum(eps, ddf), c, walk.p + grad[j] * w[j]
         )
 
-    # walk from the first coordinate not already on a bound; few breakpoints are ever
-    # crossed, so the sequential walk beats vectorizing over all p (measured on GPU)
+    # few breakpoints are ever crossed, so the sequential walk beats vectorizing (measured on GPU)
     start = jnp.argmax(jnp.concatenate([breakpoints > eps, jnp.ones([1], dtype=bool)]))
     p0 = w.T @ direction
     df0 = -jnp.dot(direction, direction)
-    ddf0 = -theta * df0 - jnp.dot(m @ p0, p0)
-    c0 = jnp.zeros(m.shape[-1:], dtype=m.dtype)
+    ddf0 = -theta * df0 - jnp.dot(hessian.apply_m(p0), p0)
+    c0 = jnp.zeros(w.shape[-1:], dtype=w.dtype)
     walk = jax.lax.while_loop(
         keep_crossing, cross_breakpoint, Walk(start, df0, ddf0, c0, p0)
     )
 
     # the stop segment holds its own minimiser; everything crossed before it sits on a bound
     final_width = jnp.nan_to_num(jnp.maximum(-walk.df / walk.ddf, 0.0), nan=0.0)
-    t = (
-        jnp.where(walk.crossed > 0, breakpoints[jnp.maximum(walk.crossed - 1, 0)], 0.0)
-        + final_width
-    )
+    last_breakpoint = breakpoints[jnp.maximum(walk.crossed - 1, 0)]
+    t = jnp.where(walk.crossed > 0, last_breakpoint, 0.0) + final_width
     c = walk.c + final_width * walk.p
-    # scatter back through the permutation: argsorting it makes a scatter XLA's GPU backend rejects
+    # scatter back through the permutation rather than argsort it (GPU scatter restriction)
     free_sorted = jnp.arange(x.shape[-1]) >= walk.crossed
     free = jnp.zeros_like(free_sorted).at[order].set(free_sorted)
     x_cauchy = jnp.where(free, x + t * direction, x_bound)
@@ -172,12 +172,14 @@ def _subspace_minimum(
     cauchy: _CauchyPoint,
 ) -> Float[Array, "p"]:
     """Direct primal minimisation over the free variables, eqs. 5.4-5.11."""
-    theta, w, m = hessian
+    theta, w = hessian.theta, hessian.w
+
+    # Newton step, eqs. 5.10-5.11 with the nested Woodbury solves collapsed into one
     w_free = jnp.where(cauchy.free[:, jnp.newaxis], w, 0.0)
-    residual = grad + theta * (cauchy.x - x) - w_free @ (m @ cauchy.c)
-    v = m @ (w_free.T @ residual)
-    reduced = jnp.eye(m.shape[-1], dtype=w.dtype) - m @ (w_free.T @ w_free) / theta
-    newton = -residual / theta - w_free @ jnp.linalg.solve(reduced, v) / theta**2
+    residual = grad + theta * (cauchy.x - x) - w_free @ hessian.apply_m(cauchy.c)
+    reduced = hessian.m - w_free.T @ w_free / theta
+    correction = w_free @ jnp.linalg.solve(reduced, w_free.T @ residual) / theta**2
+    newton = -residual / theta - correction
 
     # truncate the step at the box, eq. 5.8
     moving = cauchy.free & (jnp.abs(newton) > 0.0)
@@ -199,15 +201,13 @@ def _step_sizes(
     """How long the first trial step is and how far the search ray may run, scipy's lnsrlb."""
     constrained = jnp.any(jnp.isfinite(lower) | jnp.isfinite(upper))
     boxed = jnp.all(jnp.isfinite(lower) & jnp.isfinite(upper))
+
+    # longest step that stays in the box
     advancing = direction != 0.0
-    feasible = jnp.min(
-        jnp.where(
-            advancing,
-            jnp.where(direction > 0.0, upper - x, lower - x)
-            / jnp.where(advancing, direction, 1.0),
-            jnp.inf,
-        )
-    )
+    gap = jnp.where(direction > 0.0, upper - x, lower - x)
+    safe_direction = jnp.where(advancing, direction, 1.0)
+    feasible = jnp.min(jnp.where(advancing, gap / safe_direction, jnp.inf))
+
     # a constrained problem never overshoots its own subspace minimiser on the first iteration
     max_step = jnp.where(
         constrained, jnp.where(first_iteration, 1.0, feasible), MAX_STEP
