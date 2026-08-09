@@ -269,6 +269,37 @@ def test_a_nan_region_is_survived_and_a_nan_start_is_flagged():
     assert nan_start.failed_linesearch and nan_start.iteration == 0
 
 
+def test_ftol_stops_early_where_f_stops_moving():
+    fun = vlse.Rosenbrock(d=8)
+    bounds = tuple(jnp.broadcast_to(jnp.asarray(bound), (8,)) for bound in fun.domain)
+    x0 = starts_in(bounds, 1, seed=0)[0]
+
+    strict = minimise(fun, x0, bounds, tol=1e-12, max_iterations=MAX_ITERATIONS)
+    eager = minimise(
+        fun, x0, bounds, tol=1e-12, ftol=1e-9, max_iterations=MAX_ITERATIONS
+    )
+
+    assert eager.converged_ftol
+    assert eager.iteration < strict.iteration
+    assert eager.f == pytest.approx(float(strict.f), abs=1e-6)
+
+
+def test_a_pytree_x0_solves_flat_and_returns_its_structure():
+    """The pytree solve is the flat solve in different clothes."""
+
+    def fun(params):
+        return jnp.sum((params["a"] - 0.3) ** 2) + jnp.sum((params["b"] + 0.2) ** 2)
+
+    x0 = {"a": jnp.zeros(2), "b": jnp.zeros((2, 2))}
+    bounds = ({"a": jnp.full(2, -1.0), "b": -1.0}, {"a": jnp.ones(2), "b": 1.0})
+    state = jax.jit(lambda x: minimise(fun, x, bounds, tol=TOL))(x0)
+
+    assert state.x.keys() == x0.keys() and state.grad["b"].shape == (2, 2)
+    assert np.allclose(state.x["a"], 0.3, atol=1e-6)
+    assert np.allclose(state.x["b"], -0.2, atol=1e-6)
+    assert state.error <= TOL
+
+
 def test_takes_args_and_vmaps_over_them():
     """A batch costs its slowest member; each element runs its own while_loop."""
     shifts = jnp.linspace(-1.0, 1.0, 5)

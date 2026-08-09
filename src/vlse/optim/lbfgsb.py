@@ -4,8 +4,9 @@ from typing import Callable, NamedTuple, Optional
 
 import jax
 import jax.numpy as jnp
+from jax.flatten_util import ravel_pytree
 from jax.scipy.linalg import lu_factor, lu_solve
-from jaxtyping import Array, Bool, Float, Int, Scalar
+from jaxtyping import Array, Bool, Float, Int, PyTree, Scalar
 
 MAX_STEP = 1e10  # scipy's `big` in lnsrlb, the step cap when nothing bounds the ray
 EXPANSION = 4.0  # scipy's xtrapu in dcsrch
@@ -23,6 +24,7 @@ class LBFGSBState(NamedTuple):
     n_fun_eval: Int[Array, ""]
     error: Scalar
     failed_linesearch: Bool[Array, ""]
+    converged_ftol: Bool[Array, ""]
     f_at_restart: Scalar
     iteration_at_restart: Int[Array, ""]
 
@@ -375,31 +377,40 @@ def _update_memory(
 
 def minimise(
     fun: Callable[..., Scalar],
-    x0: Float[Array, "p"],
-    bounds: Optional[tuple[Float[Array, "p"], Float[Array, "p"]]] = None,
+    x0: PyTree,
+    bounds: Optional[tuple[PyTree, PyTree]] = None,
     args: tuple = (),
     tol: float | Float[Array, ""] = jnp.array(1e-5),
+    ftol: float | Float[Array, ""] = jnp.array(0.0),
     max_iterations: int | Int[Array, ""] = jnp.array(100),
     history_length: int = 10,
-    max_linesearch: int | Int[Array, ""] = jnp.array(30),
+    max_linesearch: int | Int[Array, ""] = jnp.array(20),
     c1: float | Float[Array, ""] = jnp.array(1e-4),
     c2: float | Float[Array, ""] = jnp.array(0.9),
 ) -> LBFGSBState:
     """Minimise `fun(x, *args)` over a box, stopping when the projected gradient is below tol.
 
     `args` is scipy's: a tuple of extras held fixed, differentiated through but not with respect to.
+    `x0` may be any pytree; the solve runs on the raveled vector and `x`/`grad` come back
+    in `x0`'s structure. `bounds` mirror that structure, leaves broadcastable.
+    `ftol` is scipy's: also stop once an iteration's relative decrease of f falls below it.
     """
+    x0_flat, unravel = ravel_pytree(x0)
     lower, upper = (
-        (-jnp.inf * jnp.ones_like(x0), jnp.inf * jnp.ones_like(x0))
+        (-jnp.inf * jnp.ones_like(x0_flat), jnp.inf * jnp.ones_like(x0_flat))
         if bounds is None
-        else bounds
+        else (
+            ravel_pytree(
+                jax.tree.map(lambda leaf, b: jnp.broadcast_to(b, leaf.shape), x0, bound)
+            )[0]
+            for bound in bounds
+        )
     )
-    lower, upper = jnp.broadcast_to(lower, x0.shape), jnp.broadcast_to(upper, x0.shape)
 
     def value_and_grad(x):
-        return jax.value_and_grad(fun)(x, *args)
+        return jax.value_and_grad(lambda flat: fun(unravel(flat), *args))(x)
 
-    x = jnp.clip(x0, lower, upper)
+    x = jnp.clip(x0_flat, lower, upper)
     f, grad = value_and_grad(x)
     eps = float(jnp.finfo(x.dtype).eps)
     init = LBFGSBState(
@@ -415,6 +426,7 @@ def minimise(
         error=projected_gradient_norm(x, grad, lower, upper),
         # a non-finite start can't be searched from; flag it instead of iterating on NaN
         failed_linesearch=~jnp.isfinite(f),
+        converged_ftol=jnp.array(False),
         f_at_restart=jnp.array(jnp.inf, dtype=f.dtype),
         iteration_at_restart=jnp.array(0),
     )
@@ -424,6 +436,7 @@ def minimise(
             (state.error > tol)
             & (state.iteration < max_iterations)
             & ~state.failed_linesearch
+            & ~state.converged_ftol
         )
 
     def step(state: LBFGSBState) -> LBFGSBState:
@@ -483,6 +496,13 @@ def minimise(
             n_fun_eval=state.n_fun_eval + n_eval,
             error=projected_gradient_norm(best.x, best.grad, lower, upper),
             failed_linesearch=(failed & ~restart) | stalled,
+            converged_ftol=(ftol > 0.0)
+            & ~failed
+            & (
+                (f - best.f)
+                <= ftol * jnp.maximum(jnp.maximum(jnp.abs(f), jnp.abs(best.f)), 1.0)
+            ),
         )
 
-    return jax.lax.while_loop(unconverged, step, init)
+    state = jax.lax.while_loop(unconverged, step, init)
+    return state._replace(x=unravel(state.x), grad=unravel(state.grad))
