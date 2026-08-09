@@ -23,6 +23,8 @@ class LBFGSBState(NamedTuple):
     n_fun_eval: Int[Array, ""]
     error: Scalar
     failed_linesearch: Bool[Array, ""]
+    f_at_restart: Scalar
+    iteration_at_restart: Int[Array, ""]
 
 
 class _Hessian(NamedTuple):
@@ -411,7 +413,10 @@ def minimise(
         iteration=jnp.array(0),
         n_fun_eval=jnp.array(1),
         error=projected_gradient_norm(x, grad, lower, upper),
-        failed_linesearch=jnp.array(False),
+        # a non-finite start can't be searched from; flag it instead of iterating on NaN
+        failed_linesearch=~jnp.isfinite(f),
+        f_at_restart=jnp.array(jnp.inf, dtype=f.dtype),
+        iteration_at_restart=jnp.array(0),
     )
 
     def unconverged(state: LBFGSBState) -> Bool[Array, ""]:
@@ -445,11 +450,31 @@ def minimise(
         best, n_eval = _wolfe_search(
             evaluate, start, initial_step, max_step, max_linesearch, c1, c2, eps
         )
-        # an alpha too short to move x cannot improve: s and y stay zero, so the memory skips
-        # the pair and the next iteration recomputes this one exactly, to the iteration cap
+        # scipy's driver on a failed search: with history to blame, wipe the memory and let
+        # the next iteration retry as steepest descent; a failure on fresh memory is final
         failed = (best.alpha == 0.0) | jnp.all(best.x == x)
+        # a restart must be earned by real progress since the last one, or the
+        # wipe/stall cycle burns the whole iteration budget
+        progress = state.f_at_restart - best.f
+        meaningful = eps**0.5 * jnp.maximum(1.0, jnp.abs(best.f))
+        restart = failed & (state.n_updates > 0) & (progress > meaningful)
+        # after a restart the solver is on probation: crawling without meaningful
+        # progress for a full memory rebuild is the same dead end scipy aborts on
+        stalled = (progress <= meaningful) & (
+            state.iteration - state.iteration_at_restart >= 2 * history_length
+        )
 
         state = _update_memory(state, best.x - x, best.grad - grad, eps)
+        state = state._replace(
+            s_history=jnp.where(restart, 0.0, state.s_history),
+            y_history=jnp.where(restart, 0.0, state.y_history),
+            theta=jnp.where(restart, 1.0, state.theta),
+            n_updates=jnp.where(restart, 0, state.n_updates),
+            f_at_restart=jnp.where(restart, best.f, state.f_at_restart),
+            iteration_at_restart=jnp.where(
+                restart, state.iteration + 1, state.iteration_at_restart
+            ),
+        )
         return state._replace(
             x=best.x,
             f=best.f,
@@ -457,7 +482,7 @@ def minimise(
             iteration=state.iteration + 1,
             n_fun_eval=state.n_fun_eval + n_eval,
             error=projected_gradient_norm(best.x, best.grad, lower, upper),
-            failed_linesearch=failed,
+            failed_linesearch=(failed & ~restart) | stalled,
         )
 
     return jax.lax.while_loop(unconverged, step, init)

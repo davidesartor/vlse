@@ -254,6 +254,21 @@ def test_a_wrapped_objective_solves_the_same_as_the_bare_module():
     assert np.allclose(shifted.x, bare.x)
 
 
+def test_a_nan_region_is_survived_and_a_nan_start_is_flagged():
+    """A GP-style objective: NaN where the model breaks, smooth where it doesn't."""
+
+    def fun(x):
+        return jnp.sum((x - 0.25) ** 2) + 0.01 * jnp.sum(jnp.sqrt(x))
+
+    bounds = (jnp.full(3, -1.0), jnp.ones(3))
+    state = minimise(fun, jnp.full(3, 0.9), bounds, tol=TOL)
+    assert jnp.isfinite(state.f) and jnp.all(jnp.isfinite(state.x))
+    assert (state.error <= TOL) | state.failed_linesearch
+
+    nan_start = minimise(fun, jnp.full(3, -0.5), bounds, tol=TOL)
+    assert nan_start.failed_linesearch and nan_start.iteration == 0
+
+
 def test_takes_args_and_vmaps_over_them():
     """A batch costs its slowest member; each element runs its own while_loop."""
     shifts = jnp.linspace(-1.0, 1.0, 5)
