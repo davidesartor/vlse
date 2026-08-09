@@ -33,30 +33,26 @@ f.ymin                                              # 0.0, the minimum over `dom
 
 ## API
 
-Every function has the same shape. Ignoring the JAX machinery, it is just:
+Every function has the same shape:
 
 ```python
 class SomeFunction:
-    d: int              # input dimension: a constructor argument for the 19
-                        # any-dimensional functions, fixed for the rest
+    d: int              # input dimension; a constructor argument for the any-d functions
     domain: (lo, hi)    # per-axis bounds, each of length d
-    ymin: float         # the global minimum of the function over `domain`
+    ymin: float         # global minimum over `domain`
 
-    def __call__(self, x):   # x: (..., d)  ->  (...)
+    def __call__(self, x):   # (..., d) -> (...)
         ...
 ```
 
-Function parameters are constructor arguments carrying the published defaults
-(`Ackley(a=, b=, c=)`, `Michalewicz(m=)`, `Shekel(b=, C=)`). Alternate published forms are
-arguments too, not separate classes: `rescaled=True` is the Picheny et al. (2012)
-reparametrization, `Branin(modified=True)` the Forrester et al. (2008) modified Branin,
-`Bohachevsky(variant=1|2|3)` and `Shekel(m=5|7|10)` the published variants.
+Published parameters and variants are constructor arguments, never separate classes:
+`Ackley(a=, b=, c=)`, `Michalewicz(m=)`, `Shekel(m=5|7|10, b=, C=)`,
+`Bohachevsky(variant=1|2|3)`, `rescaled=True` for the Picheny et al. (2012) forms,
+`Branin(modified=True)` for the Forrester et al. (2008) modified Branin.
 
-`normalized=True` takes the unit cube in and shifts the minimum to 0 — the form an optimizer
-benchmark usually wants. Exactly: `g(u) == f(lo + (hi - lo) * u) - f.ymin`.
-
-Instantiated bare, a function is exactly as published. For f64, enable `jax_enable_x64` before
-importing `vlse`.
+`normalized=True` takes the unit cube in and shifts the minimum to 0:
+`g(u) == f(lo + (hi - lo) * u) - f.ymin`. Instantiated bare, a function is exactly as
+published. For f64, enable `jax_enable_x64` before importing `vlse`.
 
 ## Functions
 
@@ -172,23 +168,25 @@ jax.jit(jax.vmap(lambda x0: minimise(f, x0, f.domain)))(starts)
 ```
 
 The signature follows `scipy.optimize.minimize`: `minimise(fun, x0, bounds=None, args=(),
-tol=1e-5, max_iterations=100, history_length=10, ...)`. The stopping criterion is scipy's `pgtol`,
-the line search follows scipy's `lnsrlb`/`dcsrch`, and every tolerance is read off the working
-dtype, so f32 and f64 both run — each to the precision it has. Parity against scipy is
+tol=1e-5, ftol=0.0, max_iterations=100, history_length=10, ...)`. `x0` may be any pytree —
+the solve runs on the raveled vector and `x`/`grad` come back in `x0`'s structure, with
+`bounds` mirroring it. Stopping is scipy's `pgtol` (plus `ftol` on relative decrease when
+set), the line search follows scipy's `lnsrlb`/`dcsrch`, and every tolerance is read off the
+working dtype, so f32 and f64 both run — each to the precision it has. Parity against scipy is
 checked in f64, since scipy's Fortran has no single precision path.
 
-The result is not byte-identical to scipy — XLA reassociates the arithmetic, and on a multimodal
-box the last bit can decide a basin. The test suite (`tests/optim/`) therefore solves all 48
-functions from 32 shared starts in six modes (sequential / `lax.map` / `vmap` × CPU / GPU) and
-holds each mode to scipy statistically: outside the multimodal set, every start must land exactly
-where scipy lands; on it, a one-sided Wilcoxon signed-rank over the per-start differences,
-Šidák-corrected across the battery, must not show the solver landing in worse minima than scipy.
+The result is not byte-identical to scipy — XLA reassociates the arithmetic, and on a
+multimodal box the last bit can decide a basin. The test suite (`tests/optim/`) therefore
+solves all 48 functions from 32 shared starts in six modes (sequential / `lax.map` / `vmap`
+× CPU / GPU): outside the multimodal set every start must land exactly where scipy lands;
+on it, a Šidák-corrected one-sided Wilcoxon signed-rank must not show the solver landing in
+worse minima than scipy.
 
 ## Benchmarks
 
-Both benches sweep every GPU and CPU of one cluster along two axes — batch size at fixed
-dimension, dimension at fixed batch — climbing powers of two until the device gives out. Median
-per-call throughput, 95% interval shaded, log-log. Figures open hoverable.
+Both benches sweep every GPU and CPU of one cluster over batch size and dimension, climbing
+powers of two until the device gives out. Median per-call throughput, 95% interval shaded,
+log-log; figures open hoverable.
 
 Function evaluation (`Ackley`, f32; the
 [f64 batch](https://raw.githack.com/davidesartor/vlse/main/bench/functions/scaling-batch-fp64.html)
