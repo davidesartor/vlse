@@ -3,10 +3,12 @@
 The two axes the function bench sweeps: `--sweep batch` grows a multistart batch at a fixed
 dimension, `--sweep dim` grows the dimension at a fixed batch. A point here is a solve rather than
 an evaluation -- the timed call runs L-BFGS-B from a random start in the box until the projected
-gradient is under `--tol`.
+gradient is under `--tol`, which defaults to what the working `--dtype` can reach and is scaled
+with the dimension, since Ackley's gradient falls off as 1/d.
 """
 
 import argparse
+import os
 
 import numpy as np
 
@@ -15,6 +17,7 @@ from ..results import device_label
 from ..sweep import Run
 
 UNIT = "solves/s"
+DTYPES = ("f32", "f64")
 SWEEPS = ("batch", "dim")
 PAGES = {"batch": "scaling-batch", "dim": "scaling-dim"}
 # one CPU job per width, all on one node; 16 keeps every width on one socket
@@ -22,15 +25,36 @@ CORES = "1,2,4,8,16"
 EXPONENTS = range(0, 25)
 REPEATS = 12
 WALLTIME = "00:05:00"
-# scipy is CPU only, so GPU jobs run jax alone
-GPU_CONFIGS = tuple(f"jax:{sweep}:{e}" for sweep in SWEEPS for e in EXPONENTS)
+# the projected gradient a solve runs to, as far down as the working dtype reaches:
+# f32 asked for the f64 tolerance stalls short of it and burns the iteration cap instead
+TOLS = {"f32": 1e-3, "f64": 1e-9}
+# Ackley's projected gradient falls off as 1/d, so a tolerance fixed along the dim sweep is met
+# by the random start itself past d ~ 8192 and the solve returns at iteration zero: the numbers
+# above are quoted at this dimension and scaled by REFERENCE_DIM / d, which keeps a point the
+# same distance to walk at every d and leaves the batch sweep, run at exactly this d, untouched
+REFERENCE_DIM = 64
+# scipy's Fortran is double precision only, so it is the f64 baseline and nothing else
 SCIPY = "scipy"
+SCIPY_DTYPE = "f64"
+# scipy is CPU only, so GPU jobs run jax alone
+GPU_CONFIGS = tuple(
+    f"jax:{dtype}:{sweep}:{e}"
+    for dtype in DTYPES
+    for sweep in SWEEPS
+    for e in EXPONENTS
+)
 NOTE = (
     "median of per-call throughputs, 95% interval on the median shaded; "
-    "L-BFGS-B to a projected gradient of 1e-9, jit warmed up"
+    "L-BFGS-B to a projected gradient of {tol}, jit warmed up"
     "<br>the host's per-call dispatch latency, measured separately, is subtracted off every point"
-    "<br>only the hpc parts run f64 at full rate; the rest are 1/32 or 1/64 in hardware"
 )
+# what that dtype means for the solve and for the hardware
+CAVEATS = {
+    "f32": "the tolerance is the dtype's, not the f64 page's: single precision stalls near 1e-4 "
+    "and cannot be asked for more"
+    "<br>the scipy baseline is dashed and f64: its Fortran has no single precision path",
+    "f64": "only the hpc parts run f64 at full rate; the rest are 1/32 or 1/64 in hardware",
+}
 
 
 def cpu_configs(cores: int) -> tuple[str, ...]:
@@ -39,8 +63,9 @@ def cpu_configs(cores: int) -> tuple[str, ...]:
     min_exponent = (cores - 1).bit_length()
     exponents = {"batch": range(min_exponent, 31), "dim": EXPONENTS}
     return tuple(
-        f"{solver}:{sweep}:{e}"
+        f"{solver}:{dtype}:{sweep}:{e}"
         for solver in solvers
+        for dtype in (DTYPES if solver == "jax" else (SCIPY_DTYPE,))
         for sweep in SWEEPS
         for e in exponents[sweep]
     )
@@ -53,8 +78,8 @@ def canonical_label(label: str, solver: str) -> str:
 
 def task_key(device: str, config: str) -> tuple[str, str, str, int]:
     """The (label, sweep, dtype, point) one array task writes, so the board can look it up."""
-    solver, sweep, exponent = config.split(":")
-    return canonical_label(device, solver), sweep, "f64", 2 ** int(exponent)
+    solver, dtype, sweep, exponent = config.split(":")
+    return canonical_label(device, solver), sweep, dtype, 2 ** int(exponent)
 
 
 def add_run_arguments(p: argparse.ArgumentParser) -> None:
@@ -64,6 +89,7 @@ def add_run_arguments(p: argparse.ArgumentParser) -> None:
         help="row label, default <platform>-<device kind>, or scipy for the scipy solver",
     )
     p.add_argument("--fn", default="Ackley", help="vlse class name")
+    p.add_argument("--dtype", choices=DTYPES, default="f64")
     p.add_argument("--solver", choices=("jax", "scipy"), default="jax")
     p.add_argument("--sweep", choices=SWEEPS, default="batch", help="the axis grown")
     # the axes the function bench fixes, so a point means the same problem in either
@@ -73,7 +99,13 @@ def add_run_arguments(p: argparse.ArgumentParser) -> None:
     p.add_argument(
         "--batch", type=int, default=1024, help="batch the dim sweep runs at"
     )
-    p.add_argument("--tol", type=float, default=1e-9, help="projected gradient at stop")
+    p.add_argument(
+        "--tol",
+        type=float,
+        default=None,
+        help=f"projected gradient at stop, quoted at d={REFERENCE_DIM} and scaled "
+        f"{REFERENCE_DIM}/d, default per dtype: {TOLS}",
+    )
     p.add_argument("--max-iterations", type=int, default=1000)
     p.add_argument(
         "--threads",
@@ -170,34 +202,43 @@ def prepare(args) -> Run:
             f"{flags} --xla_force_host_platform_device_count={args.shards}".strip()
         )
 
+    if args.solver == "scipy" and args.dtype != SCIPY_DTYPE:
+        raise SystemExit(f"scipy's L-BFGS-B is {SCIPY_DTYPE} only")
+    tol = TOLS[args.dtype] if args.tol is None else args.tol
+    tol_at = lambda d: tol * REFERENCE_DIM / d
+
     import jax
     import jax.numpy as jnp
 
-    jax.config.update("jax_enable_x64", True)
+    jax.config.update("jax_enable_x64", args.dtype == "f64")
 
     import vlse
 
     cls = getattr(vlse, args.fn)
+    dtype = dict(f32=jnp.float32, f64=jnp.float64)[args.dtype]
     # scipy never sees the accelerator, so it is labelled by the CPU it actually ran on
     device = jax.devices()[0 if args.solver == "scipy" else args.device]
 
     def timed_call(d: int, n_starts: int, seed: int):
         fun = cls(d=d)
         lo, hi = (np.asarray(bound, dtype=np.float64) for bound in fun.domain)
-        bounds = tuple(jnp.broadcast_to(jnp.asarray(bound), (d,)) for bound in (lo, hi))
+        bounds = tuple(
+            jnp.broadcast_to(jnp.asarray(bound, dtype=dtype), (d,))
+            for bound in (lo, hi)
+        )
         rng = np.random.default_rng((d, n_starts, seed))
-        starts = jnp.asarray(rng.uniform(lo, hi, size=(n_starts, d)), dtype=jnp.float64)
+        starts = jnp.asarray(rng.uniform(lo, hi, size=(n_starts, d)), dtype=dtype)
 
         if args.solver == "scipy":
             return (
-                scipy_call(fun, starts, bounds, args.tol, args.max_iterations),
+                scipy_call(fun, starts, bounds, tol_at(d), args.max_iterations),
                 lambda: None,
             )
 
         on_cpu = device.platform == "cpu"
         return (
             jax_call(
-                fun, starts, bounds, args.tol, args.max_iterations, on_cpu, args.shards
+                fun, starts, bounds, tol_at(d), args.max_iterations, on_cpu, args.shards
             ),
             starts.delete,
         )
@@ -206,13 +247,13 @@ def prepare(args) -> Run:
         setup, work_at, axes = (
             (lambda n, seed: timed_call(args.dim, n, seed)),
             (lambda n: n),
-            dict(d=args.dim, batch=""),
+            dict(d=args.dim, batch="", tol=f"{tol_at(args.dim):g}"),
         )
     else:
         setup, work_at, axes = (
             lambda d, seed: timed_call(d, args.batch, seed),
             lambda _: args.batch,
-            dict(d="", batch=args.batch),
+            dict(d="", batch=args.batch, tol=f"{tol:g}*{REFERENCE_DIM}/d"),
         )
 
     label = canonical_label(args.label or device_label(device), args.solver)
@@ -223,12 +264,11 @@ def prepare(args) -> Run:
         setup=setup,
         work_at=work_at,
         constants=dict(
-            dtype="f64",
+            dtype=args.dtype,
             fn=args.fn,
             **axes,
             version=jax.__version__,
             solver=args.solver,
-            tol=args.tol,
             max_iterations=args.max_iterations,
             threads=args.threads or "all",
             shards=args.shards,
@@ -238,7 +278,10 @@ def prepare(args) -> Run:
 
 
 def pages(args, results: str):
-    """One page per sweep, f64 only. scipy is drawn dashed: it is the baseline, not another device."""
+    """One page per sweep and dtype. scipy is drawn dashed: it is the baseline, not another device.
+
+    The same f64 baseline is drawn on both pages, since it is the only precision it has.
+    """
     axes = {
         "batch": ("multistart batch", f"Ackley, d = {args.dim}", lambda point: point),
         "dim": (
@@ -247,23 +290,40 @@ def pages(args, results: str):
             lambda _: args.batch,
         ),
     }
+    # the batch sweep runs at the dimension the tolerances are quoted at, the dim sweep scales them
+    quoted_tol = {
+        "batch": lambda tol: f"{tol * REFERENCE_DIM / args.dim:g}",
+        "dim": lambda tol: f"{tol:g} x {REFERENCE_DIM}/d",
+    }
     wanted = set(args.devices.split(",")) if args.devices else None
     for sweep, (axis_name, title, solves_at) in axes.items():
         curves = load(results, sweep, solves_at)
         reference = {
             SCIPY: curve for (label, _), curve in curves.items() if label == SCIPY
         }
-        # the backend is the same for every device here, so the label is just the chip
-        chips = {label for label, _ in curves if label != SCIPY}
-        if wanted is not None:
-            chips &= wanted
-        series = {chip: curves[chip, "f64"] for chip in sorted(chips)}
-        yield Page(
-            name=f"{PAGES[sweep]}-fp64",
-            title=f"{title}, fp64",
-            axis_name=axis_name,
-            y_name="solves / second",
-            note=NOTE,
-            series={**reference, **series},
-            dashed=tuple(reference),
-        )
+        for dtype in DTYPES:
+            # the backend is the same for every device here, so the label is just the chip
+            chips = {
+                label for label, seen in curves if label != SCIPY and seen == dtype
+            }
+            if wanted is not None:
+                chips &= wanted
+            series = {chip: curves[chip, dtype] for chip in sorted(chips)}
+            # the baseline alone is not a page, so a dtype with no solver rows is skipped
+            if not series:
+                continue
+            precision = f"fp{dtype.removeprefix('f')}"
+            yield Page(
+                name=f"{PAGES[sweep]}-{precision}",
+                title=f"{title}, {precision}",
+                axis_name=axis_name,
+                y_name="solves / second",
+                note="<br>".join(
+                    (
+                        NOTE.format(tol=quoted_tol[sweep](TOLS[dtype])),
+                        CAVEATS[dtype],
+                    )
+                ),
+                series={**reference, **series},
+                dashed=tuple(reference),
+            )

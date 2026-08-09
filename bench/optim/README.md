@@ -3,8 +3,10 @@
 How fast `vlse.optim.lbfgsb` solves, across the GPUs and CPUs of one cluster, against scipy's Fortran
 L-BFGS-B on the same objective. The same two axes as the function bench:
 
-- **batch sweep** — grow a multistart batch at a fixed dimension: [fp64](scaling-batch-fp64.html)
-- **dim sweep** — grow the dimension at a fixed batch: [fp64](scaling-dim-fp64.html)
+- **batch sweep** — grow a multistart batch at a fixed dimension:
+  [fp32](scaling-batch-fp32.html), [fp64](scaling-batch-fp64.html)
+- **dim sweep** — grow the dimension at a fixed batch:
+  [fp32](scaling-dim-fp32.html), [fp64](scaling-dim-fp64.html)
 
 Speed only. Whether the two solvers land in the same place is `tests/optim/`, which runs all 48
 functions in both variants against the same scipy; nothing here is a correctness claim.
@@ -12,7 +14,7 @@ functions in both variants against the same scipy; nothing here is a correctness
 ## Running it
 
 ```bash
-uv run python -m bench optim run --sweep batch --solver jax
+uv run python -m bench optim run --sweep batch --solver jax --dtype f32
 uv run python -m bench optim run --sweep dim --solver scipy --threads 1
 uv run --group bench python -m bench optim plot
 uv run python -m bench optim submit --dry-run
@@ -22,8 +24,9 @@ One CPU job per width, `--cores` defaulting to `1,2,4,8,16`: each jax job shards
 its cores, and scipy — serial whatever the width — runs only in the single-core job. Every width
 lands on the same node (`--cpu-node`, defaulting to an idle node carrying `--cpu-feature`) and
 takes it exclusively, so the widths differ by width and nothing else; the script `taskset`s to
-cpus `0..cores-1`, since the allocation no longer bounds them. Each array task is one point — one solver, sweep and power-of-two size, passed as a
-`solver:sweep:exponent` script argument the task id picks from — and runs `--repeats` sequential
+cpus `0..cores-1`, since the allocation no longer bounds them. Each array task is one point — one
+solver, dtype, sweep and power-of-two size, passed as a
+`solver:dtype:sweep:exponent` script argument the task id picks from — and runs `--repeats` sequential
 repeats of it. The axis runs 2**0 through 2**24 regardless of device (a batch smaller than the
 shard count is skipped rather than submitted, since it cannot split); most exponents OOM or TIMEOUT
 long before the top, which costs that one array task and nothing else. `REPEATS`, `REPS`, `DIM`,
@@ -32,11 +35,29 @@ long before the top, which costs that one array task and nothing else. `REPEATS`
 ## What is measured
 
 A point is a solve, not an evaluation. The timed call runs L-BFGS-B from a random start in the box
-until the projected gradient is under `--tol` (1e-9), so what the axis buys is solves per second.
+until the projected gradient is under `--tol`, so what the axis buys is solves per second.
 Everything around that call is the function bench's — same block sizing, same axis climbed one array
 task per size — so the two sets of curves can be read against each other. The CPU ceiling is
 `--max-seconds 10` rather than the function bench's 1, because at a second a call the axis would be
 three points long.
+
+`--dtype` picks the working precision of the solve — `f64` with x64 on, `f32` with it off — and each
+gets its own page, run to its own `--tol`: 1e-9 for f64, 1e-3 for f32. The tolerance has to follow
+the dtype, because a projected gradient the arithmetic cannot resolve is not a stopping criterion,
+it is an iteration cap. Measured on this problem at batch 256, f32 asked for 1e-9 reached it 2/256
+times at `d=64`, took a median 43 iterations against f64's 16, and ran 28 of the 256 starts into
+`--max-iterations`. At 1e-3 it reaches tolerance 256/256 at `d=64` and `d=512` and 254/256 at
+`d=8`, in 11-16 iterations, none capped. So the two pages are the same solve run to the precision
+each dtype has, and neither is padded with starts spinning after they have stopped improving.
+
+Those two numbers are quoted at `d=64` and scaled `64/d` along the dim sweep, because Ackley's
+projected gradient falls off as `1/d`: held fixed, 1e-3 is already met by the random start itself
+past `d=8192`, and the f32 dim curve turns back up as the solve returns at iteration zero. Scaled,
+a point is the same distance to walk at every dimension, and the batch sweep — run at exactly
+`d=64` — stops where it always did.
+
+`--solver scipy` is f64 only, since its Fortran has no single precision path; it is drawn as the
+baseline on both pages.
 
 `--solver jax` puts the whole batch under one dispatch. `--solver scipy` runs the starts one after
 another, which is the only way scipy has, against the same jax objective through a host round trip.
@@ -94,6 +115,8 @@ shared columns: `solver`, `tol`, `max_iterations`, `threads`, `shards`, `devices
   subtracted off every point; scipy has no dispatch to subtract, since the Python call per
   evaluation is the measurement rather than an overhead on it.
 - Iteration counts are not held equal. Both solvers run to the same projected-gradient tolerance
-  from the same starts; solves per second at a fixed tolerance is the whole measurement.
+  from the same starts; solves per second at a fixed tolerance is the whole measurement. Across
+  dtypes the tolerance moves with the precision, so the f32 page is not the f64 page's work done
+  faster — it is less work, done in arithmetic that cannot do more.
 - Nodes are shared and clocks vary with what else is on the machine. Order-of-magnitude picture,
   not a certified ranking.

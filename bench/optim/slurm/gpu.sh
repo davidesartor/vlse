@@ -1,5 +1,5 @@
 #!/bin/bash
-# One GPU chip type; the array task id picks one solver:sweep:exponent point from the args.
+# One GPU chip type; the array task id picks one solver:dtype:sweep:exponent point from the args.
 # Args: <label> <config>... Submitted by `python -m bench optim submit`.
 # scipy is absent here on purpose: its L-BFGS-B is a CPU library, and the CPU job runs it.
 set -euo pipefail
@@ -25,12 +25,9 @@ label="$1"
 shift
 configs=("$@")
 config="${configs[$((SLURM_ARRAY_TASK_ID - 1))]}"
-solver="${config%%:*}"
-rest="${config#*:}"
-sweep="${rest%%:*}"
-exponent="${rest##*:}"
+IFS=: read -r solver dtype sweep exponent <<<"$config"
 echo "config: $config"
 
 uv run --with "jax[cuda12]" python -m bench optim run \
-  --sweep "$sweep" --solver "$solver" --exponent "$exponent" --label "$label" \
+  --dtype "$dtype" --sweep "$sweep" --solver "$solver" --exponent "$exponent" --label "$label" \
   --repeats "${REPEATS:-12}" --reps "${REPS:-5}" --dim "${DIM:-64}" --batch "${BATCH:-1024}"

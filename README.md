@@ -174,7 +174,8 @@ jax.jit(jax.vmap(lambda x0: minimise(f, x0, f.domain)))(starts)
 The signature follows `scipy.optimize.minimize`: `minimise(fun, x0, bounds=None, args=(),
 tol=1e-5, max_iterations=100, history_length=10, ...)`. The stopping criterion is scipy's `pgtol`,
 the line search follows scipy's `lnsrlb`/`dcsrch`, and every tolerance is read off the working
-dtype. Enable `jax_enable_x64`: f64 is what the solver is written, tested and benchmarked for.
+dtype, so f32 and f64 both run — each to the precision it has. Parity against scipy is
+checked in f64, since scipy's Fortran has no single precision path.
 
 The result is not byte-identical to scipy — XLA reassociates the arithmetic, and on a multimodal
 box the last bit can decide a basin. The test suite (`tests/optim/`) therefore solves all 48
@@ -189,20 +190,24 @@ Both benches sweep every GPU and CPU of one cluster along two axes — batch siz
 dimension, dimension at fixed batch — climbing powers of two until the device gives out. Median
 per-call throughput, 95% interval shaded, log-log. Figures open hoverable.
 
-Function evaluation (`Ackley`, f64; the
-[f32 batch](https://raw.githack.com/davidesartor/vlse/main/bench/functions/scaling-batch-fp32.html)
-and [f32 dim](https://raw.githack.com/davidesartor/vlse/main/bench/functions/scaling-dim-fp32.html)
-panels run one to two orders faster on everything but the `hpc` parts):
+Function evaluation (`Ackley`, f32; the
+[f64 batch](https://raw.githack.com/davidesartor/vlse/main/bench/functions/scaling-batch-fp64.html)
+and [f64 dim](https://raw.githack.com/davidesartor/vlse/main/bench/functions/scaling-dim-fp64.html)
+panels run one to two orders slower on everything but the `hpc` parts):
 
-[![evaluations per second against batch size, f64, one line per device](https://raw.githubusercontent.com/davidesartor/vlse/main/bench/functions/scaling-batch-fp64.svg)](https://raw.githack.com/davidesartor/vlse/main/bench/functions/scaling-batch-fp64.html)
+[![evaluations per second against batch size, f32, one line per device](https://raw.githubusercontent.com/davidesartor/vlse/main/bench/functions/scaling-batch-fp32.svg)](https://raw.githack.com/davidesartor/vlse/main/bench/functions/scaling-batch-fp32.html)
 
-[![evaluations per second against dimension, f64, one line per device](https://raw.githubusercontent.com/davidesartor/vlse/main/bench/functions/scaling-dim-fp64.svg)](https://raw.githack.com/davidesartor/vlse/main/bench/functions/scaling-dim-fp64.html)
+[![evaluations per second against dimension, f32, one line per device](https://raw.githubusercontent.com/davidesartor/vlse/main/bench/functions/scaling-dim-fp32.svg)](https://raw.githack.com/davidesartor/vlse/main/bench/functions/scaling-dim-fp32.html)
 
-L-BFGS-B, against scipy's Fortran on the same objective, starts and box:
+L-BFGS-B, against scipy's Fortran on the same objective, starts and box (f32, stopping at the 1e-3
+projected gradient that precision can resolve; the
+[f64 batch](https://raw.githack.com/davidesartor/vlse/main/bench/optim/scaling-batch-fp64.html)
+and [f64 dim](https://raw.githack.com/davidesartor/vlse/main/bench/optim/scaling-dim-fp64.html)
+panels solve the same problem in double precision, to 1e-9):
 
-[![solves per second against batch size, f64, one line per device](https://raw.githubusercontent.com/davidesartor/vlse/main/bench/optim/scaling-batch-fp64.svg)](https://raw.githack.com/davidesartor/vlse/main/bench/optim/scaling-batch-fp64.html)
+[![solves per second against batch size, f32, one line per device](https://raw.githubusercontent.com/davidesartor/vlse/main/bench/optim/scaling-batch-fp32.svg)](https://raw.githack.com/davidesartor/vlse/main/bench/optim/scaling-batch-fp32.html)
 
-[![solves per second against dimension, f64, one line per device](https://raw.githubusercontent.com/davidesartor/vlse/main/bench/optim/scaling-dim-fp64.svg)](https://raw.githack.com/davidesartor/vlse/main/bench/optim/scaling-dim-fp64.html)
+[![solves per second against dimension, f32, one line per device](https://raw.githubusercontent.com/davidesartor/vlse/main/bench/optim/scaling-dim-fp32.svg)](https://raw.githack.com/davidesartor/vlse/main/bench/optim/scaling-dim-fp32.html)
 
 Read the small end of either axis as latency, not throughput — JAX is dispatch-bound there.
 What is measured, how, and where each curve stops: [bench/README.md](bench/README.md).

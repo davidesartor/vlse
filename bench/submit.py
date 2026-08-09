@@ -31,6 +31,9 @@ def add_arguments(
         "--chips", default=None, help="comma separated subset of the GPU chip types"
     )
     p.add_argument(
+        "--dtypes", default=None, help="comma separated subset of the dtypes swept"
+    )
+    p.add_argument(
         "--cpu-feature",
         default=CPU_FEATURE,
         help=f"CPU node feature the pinned node is picked by, default {CPU_FEATURE}",
@@ -122,6 +125,13 @@ def partitions_of(node: str) -> str:
     raise SystemExit(f"{node} is in none of {CPU_PARTITIONS}")
 
 
+def selected(configs: tuple[str, ...], dtypes: set[str] | None) -> tuple[str, ...]:
+    """Every config names its dtype in one of its colon fields, whatever else it carries."""
+    if dtypes is None:
+        return configs
+    return tuple(config for config in configs if set(config.split(":")) & dtypes)
+
+
 def sbatch(command: list[str], dry_run: bool) -> None:
     print(" ".join(command))
     if dry_run:
@@ -137,9 +147,10 @@ def run(args) -> None:
     os.makedirs(logs, exist_ok=True)
     export = f"--export=ALL,REPEATS={args.repeats}"
     wanted = args.chips.split(",") if args.chips else None
+    dtypes = set(args.dtypes.split(",")) if args.dtypes else None
 
     if not args.skip_gpu:
-        configs = args.bench.GPU_CONFIGS
+        configs = selected(args.bench.GPU_CONFIGS, dtypes)
         for chip, partitions in gpu_chips().items():
             if wanted is not None and chip not in wanted:
                 continue
@@ -181,7 +192,7 @@ def run(args) -> None:
     else:
         node, partitions = cpu_node(args.cpu_feature)
     for cores in args.cores.split(","):
-        configs = args.bench.cpu_configs(int(cores))
+        configs = selected(args.bench.cpu_configs(int(cores)), dtypes)
         sbatch(
             [
                 "sbatch",

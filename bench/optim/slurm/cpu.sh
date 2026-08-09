@@ -1,5 +1,5 @@
 #!/bin/bash
-# One solver:sweep:exponent point per array task, picked from the args by task id. jax shards the
+# One solver:dtype:sweep:exponent point per array task, picked from the args by task id. jax shards the
 # batch across the allocated cores, one serial `lax.map` each; scipy's Fortran is serial whatever
 # the width, so it only appears in the single-core job's configs. Args: <config>...
 set -euo pipefail
@@ -13,13 +13,10 @@ cores="${SLURM_CPUS_PER_TASK:-1}"
 
 configs=("$@")
 config="${configs[$((SLURM_ARRAY_TASK_ID - 1))]}"
-solver="${config%%:*}"
-rest="${config#*:}"
-sweep="${rest%%:*}"
-exponent="${rest##*:}"
+IFS=: read -r solver dtype sweep exponent <<<"$config"
 echo "config: $config"
 
-common="--sweep $sweep --exponent $exponent --repeats ${REPEATS:-12} --reps ${REPS:-5} \
+common="--dtype $dtype --sweep $sweep --exponent $exponent --repeats ${REPEATS:-12} --reps ${REPS:-5} \
   --dim ${DIM:-64} --batch ${BATCH:-1024} --max-seconds ${MAX_SECONDS:-10}"
 
 if [ "$cores" = 1 ]; then
